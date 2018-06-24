@@ -1,20 +1,20 @@
 import React, { Component } from 'react';
 import './App.css';
 
+import { tetrisShapes } from './shapes'
 class App extends Component{
   constructor(props){
     super(props)
     this.state={ //determine what needs to go into state, a very small portion here
       canvasWidth:640,
       canvasHeight:425,
-      xPosition:20,
-      yPosition:20,
-      rectWidth:150,
-      rectHeight:50,
+      xPosition:40,
+      yPosition:40,
       timerInterval:300,
       xIncrement:10,
       yIncrement:5,
-      rotationStage:0
+      rotationStage:0,
+      shape:'dynamic'
     }
   }
   componentDidMount(){
@@ -29,10 +29,8 @@ class App extends Component{
     clearInterval(this.downInterval) //clear timer
     this.removeRect() //clear canvas
     this.setState({
-      xPosition:20,
+      xPosition:40,
       yPosition:40,
-      rectWidth:150,
-      rectHeight:50,
       rotationStage:0
     })
     this.drawShape()
@@ -43,19 +41,14 @@ class App extends Component{
   }
   
   drawShape = () =>{
-    this.canvasContext.beginPath()
-    this.canvasContext.fillStyle ="red";
-    this.canvasContext.moveTo(this.state.xPosition,this.state.yPosition)
-    this.canvasContext.lineTo(this.state.xPosition + this.state.rectWidth, this.state.yPosition)
-    this.canvasContext.lineTo(this.state.xPosition + this.state.rectWidth, this.state.yPosition + this.state.rectHeight)
-    this.canvasContext.lineTo(this.state.xPosition, this.state.yPosition + this.state.rectHeight)
-    this.canvasContext.lineTo(this.state.xPosition,this.state.yPosition)
-    this.canvasContext.fill();
+    console.log(this.state.xPosition,this.state.yPosition,)
+    //tetrisShapes[this.state.shape].draw(this.canvasContext,this.state.xPosition,this.state.yPosition,this.state.rotationStage)
+    tetrisShapes[this.state.shape].draw(this.canvasContext,this.state.xPosition,this.state.yPosition)
   }
   //downward moevent only
   computerMove =()=>{
     this.removeRect()
-    if(this.state.yPosition + this.state.rectHeight >= this.state.canvasHeight){
+    if(this.state.yPosition >= this.state.canvasHeight){
       this.resetBoard()
     }
     else{
@@ -69,31 +62,11 @@ class App extends Component{
     console.log(`We'll do ${direction} rotation here`)
     
     this.removeRect()
-    /*Trig coordinate transformation formula
-    x′=(x−p)cos(θ)−(y−q)sin(θ)+p,
-    y′=(x−p)sin(θ)+(y−q)cos(θ)+q.
-    where (p,q) origin point of transformation, and (x,y) are pre-transffered points
-    https://math.stackexchange.com/questions/270194/how-to-find-the-vertices-angle-after-rotation
-    */
-    
-    const theta=90*Math.PI/180
-    const p = this.state.xPosition + this.state.rectWidth/2
-    const q = this.state.yPosition + this.state.rectHeight/2
-    const xPrime = (this.state.xPosition - p)* Math.cos(theta)-
-        ((this.state.yPosition + this.state.rectHeight) - q)* Math.sin(theta)+
-        p
-    const yPrime = (this.state.xPosition - p)* Math.sin(theta)-
-        ((this.state.yPosition + this.state.rectHeight) - q)* Math.cos(theta)+
-        q
-    
+    tetrisShapes.dynamic.rotate(this.state.xPosition,this.state.yPosition)
     this.setState({
-      xPosition: xPrime,
-      yPosition: yPrime,
-      rectWidth: this.state.rectHeight,
-      rectHeight: this.state.rectWidth,
-      rotationStage: this.state.rotationStage > 2 ? 0 : this.state.rotationStage + 1
+        rotationStage: this.state.rotationStage > 2 ? 0 : this.state.rotationStage + 1
     },()=>this.drawShape())
-    
+  //clearInterval(this.downInterval)
   }
   //left right movement only
   playerMove = (e)=>{
@@ -106,7 +79,7 @@ class App extends Component{
   
     //check X boundaries 
     const leftOutOfBound = left && (this.state.xPosition - this.state.xIncrement) < 0
-    const rightOutOfBound = right && (this.state.xPosition + this.state.xIncrement + this.state.rectWidth) > this.state.canvasWidth
+    const rightOutOfBound = right && (this.state.xPosition + this.state.xIncrement) > this.state.canvasWidth
     if(leftOutOfBound || rightOutOfBound) return
     
     if(left){
