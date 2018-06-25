@@ -7,14 +7,13 @@ class App extends Component{
     super(props)
     this.state={ //determine what needs to go into state, a very small portion here
       canvasWidth:640,
-      canvasHeight:425,
-      xPosition:40,
-      yPosition:40,
-      timerInterval:300,
-      xIncrement:10,
-      yIncrement:5,
+      canvasHeight:640,
+      timerInterval:700,
+      xIncrement:40,
+      yIncrement:40,
+      shapeBoundingBox:[],
       rotationStage:0,
-      shape:'dynamic'
+      shape:'shapeL'
     }
   }
   componentDidMount(){
@@ -27,9 +26,9 @@ class App extends Component{
   
   resetBoard =() =>{ //clear and restart
     clearInterval(this.downInterval) //clear timer
-    this.removeRect() //clear canvas
+    this.clearCanvas() //clear canvas
     this.setState({
-      xPosition:40,
+      xPosition:this.state.canvasWidth/2,
       yPosition:40,
       rotationStage:0
     })
@@ -41,13 +40,15 @@ class App extends Component{
   }
   
   drawShape = () =>{
-    console.log(this.state.xPosition,this.state.yPosition,)
-    //tetrisShapes[this.state.shape].draw(this.canvasContext,this.state.xPosition,this.state.yPosition,this.state.rotationStage)
-    tetrisShapes[this.state.shape].draw(this.canvasContext,this.state.xPosition,this.state.yPosition)
+    console.log(this.state.xPosition,this.state.yPosition,this.state.rotationStage)
+    const bbx = tetrisShapes[this.state.shape].draw(this.canvasContext,this.state.xPosition,this.state.yPosition,this.state.rotationStage)
+    this.setState({
+      boundingBox: bbx
+    })
   }
   //downward moevent only
   computerMove =()=>{
-    this.removeRect()
+    this.clearCanvas()
     if(this.state.yPosition >= this.state.canvasHeight){
       this.resetBoard()
     }
@@ -61,8 +62,8 @@ class App extends Component{
   rotation = (direction) =>{
     console.log(`We'll do ${direction} rotation here`)
     
-    this.removeRect()
-    tetrisShapes.dynamic.rotate(this.state.xPosition,this.state.yPosition)
+    this.clearCanvas()
+    tetrisShapes[this.state.shape].rotate(this.state.xPosition,this.state.yPosition)
     this.setState({
         rotationStage: this.state.rotationStage > 2 ? 0 : this.state.rotationStage + 1
     },()=>this.drawShape())
@@ -78,18 +79,18 @@ class App extends Component{
     if(!(left||right||up||down)) return //do nothing for any other keypress
   
     //check X boundaries 
-    const leftOutOfBound = left && (this.state.xPosition - this.state.xIncrement) < 0
-    const rightOutOfBound = right && (this.state.xPosition + this.state.xIncrement) > this.state.canvasWidth
+    const leftOutOfBound = left && (this.state.boundingBox[0] - this.state.xIncrement) < 0
+    const rightOutOfBound = right && (this.state.boundingBox[1] + this.state.xIncrement) > this.state.canvasWidth
     if(leftOutOfBound || rightOutOfBound) return
     
     if(left){
-      this.removeRect()
+      this.clearCanvas()
       this.setState({
         xPosition: this.state.xPosition - this.state.xIncrement
       },()=>this.drawShape())
     }
     else if(right){
-      this.removeRect()
+      this.clearCanvas()
       this.setState({
         xPosition: this.state.xPosition + this.state.xIncrement
       },()=>this.drawShape())
@@ -99,13 +100,13 @@ class App extends Component{
     }
   }
   //clear canvas
-  removeRect = ()=>{
+  clearCanvas = ()=>{
     this.canvasContext.clearRect(0, 0, this.state.canvasWidth, this.state.canvasHeight);
   }
   
   render(){
     return(
-      <div className="containall">
+      <div className="container">
       <canvas 
         ref="canvas" 
         width={this.state.canvasWidth} 
