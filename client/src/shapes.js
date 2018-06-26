@@ -1,7 +1,20 @@
 export const tetrisShapes = {
     blockSize:40,
+    onDraw: (canvasContext,activeShape)=>{
+        const scaledVertices = tetrisShapes.scaleVertices(activeShape.unitVertices)
+        canvasContext.beginPath()
+        canvasContext.fillStyle ="red";
+        canvasContext.moveTo(activeShape.xPosition,activeShape.yPosition)
+        scaledVertices.forEach((v)=>{
+            canvasContext.lineTo(activeShape.xPosition+v[0],activeShape.yPosition+v[1])
+        })
+        canvasContext.lineTo(activeShape.xPosition,activeShape.yPosition)
+        canvasContext.fill();
+        return tetrisShapes.onBoundingBox(activeShape.xPosition,activeShape.yPosition,scaledVertices)
+    },
     onRotate: (oldVertices)=>{
-        /*Trig coordinate transformation formula
+        /*
+        Trig coordinate transformation formula
         x′=(x−p)cos(θ)−(y−q)sin(θ)+p,
         y′=(x−p)sin(θ)+(y−q)cos(θ)+q.
         where (p,q) point of rotation, and (x,y) are the pre-transformed points
@@ -21,39 +34,31 @@ export const tetrisShapes = {
         })
         return newVertices
     },
-    onBoundingBox: function(xPosition,yPosition,absVertices) {
-        const xArr = absVertices.map((v)=>{
+    onBoundingBox: (xPosition,yPosition,scaledVertices)=> {
+        const xArr = scaledVertices.map((v)=>{
             return v[0] + xPosition
         })
-        const yArr = absVertices.map((v)=>{
+        const yArr = scaledVertices.map((v)=>{
             return v[1] + yPosition
         })
         return [Math.min(...xArr),Math.max(...xArr),Math.min(...yArr),Math.max(...yArr)]
     },
+    scaleVertices: (unitVertices)=>{
+        return (unitVertices.map((v)=>{
+            return [v[0]*tetrisShapes.blockSize,v[1]*tetrisShapes.blockSize]
+        }))
+    },
     shapeL:{
         //armpit origin [[1,0],[1,1],[-1,1],[-1,-2],[0,-2]]
         //true center [[0,0.5],[1,0.5],[1,1.5],[-1,1.5],[-1,-1.5],[0,-1.5]]
-        vertices:[[1,0],[1,1],[-1,1],[-1,-2],[0,-2]],
-        absoluteVertices:function(){
-            return (this.vertices.map((v)=>{
-                return [v[0]*tetrisShapes.blockSize,v[1]*tetrisShapes.blockSize]
-            }))
-        },
-        draw: function(canvasContext,xPosition,yPosition,rotationStage){
-            const absVertices = this.absoluteVertices()
-            canvasContext.beginPath()
-            canvasContext.fillStyle ="red";
-            canvasContext.moveTo(xPosition,yPosition)
-            absVertices.forEach((v)=>{
-                canvasContext.lineTo(xPosition+v[0],yPosition+v[1])
-            })
-            canvasContext.lineTo(xPosition,yPosition)
-            canvasContext.fill();
-            return tetrisShapes.onBoundingBox(xPosition,yPosition,absVertices)
-        },
-        rotate: function(){
-            this.vertices = tetrisShapes.onRotate(this.vertices)
-        }
-        
+        vertices:[[1,0],[1,1],[-1,1],[-1,-2],[0,-2]]
+    },
+    shapeZ:{
+        //bottom armpit origin
+        vertices:[[-1,0],[-1,-1],[1,-1],[1,0],[2,0],[2,1],[0,1]]
+    },
+    shapeT:{
+        //[[-1,0],[-1,-1],[2,-1],[2,0],[1,0],[1,1],[0,1]]
+        vertices:[[0,-.5],[1.5,-.5],[1.5,.5],[.5,.5],[.5,1.5],[-.5,1.5],[-.5,.5],[-1.5,.5],[-1.5,-.5],[0,-.5]]
     }
 }
