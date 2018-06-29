@@ -11,7 +11,6 @@ class App extends Component{
       timerInterval:700,
       xIncrement:40,
       yIncrement:40,
-      occupiedCells:[],
       activeShape:{
         name:'shapeZ',
         xPosition:0,
@@ -27,70 +26,35 @@ class App extends Component{
     canvas.style.backgroundColor = "black";
     //setting context so it can be accesible everywhere in the class , maybe a better way ?
     this.canvasContext = canvas.getContext('2d') 
-    this.lastRefresh = 0
-    this.resetBoard(true)
+    this.resetBoard()
   }
 
   componentWillUnmount() {
     clearInterval(this.downInterval)
   }
   
-  tick = () => {
-
-  }
-
-  screenMatrix = () => {
-    const b = tetrisShapes.blockSize
-    const blocksPerRow = this.state.canvasWidth / b
-    let cell = 0;
-    for(let i=0;i < blocksPerRow ; i++){
-      for(let j=0; j< blocksPerRow ; j++){
-        cell++
-        const x = [i*b,(i*b)+b]
-        const y = [j*b,(j*b)+b]
-        let col ='white'
-        const xIncluded = (x[0] >= this.state.activeShape.boundingBox[0])&&(x[1] <= this.state.activeShape.boundingBox[1])
-        const yIncluded = (y[0] >= this.state.activeShape.boundingBox[2])&&(y[1] <= this.state.activeShape.boundingBox[3])
-        if(xIncluded && yIncluded){
-          col = 'green'
-          this.setState({
-            occupiedCells:[...this.state.occupiedCells,cell]
-          })
-        }
-        this.canvasContext.beginPath();
-        this.canvasContext.lineWidth="3";
-        this.canvasContext.strokeStyle=col;
-        this.canvasContext.rect(x[0],y[0],b,b); 
-        this.canvasContext.stroke();
-      }
-    }
-  }
-  resetBoard =(fresh=false) =>{ //clear and restart
-    if(fresh) this.screenMatrix()
-     //clear timer
+  resetBoard =() =>{ //clear and restart
+    clearInterval(this.downInterval) //clear timer
     this.clearCanvas() //clear canvas
     const randomShape = this.getRandomShape()
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
-    if(randomShape[0] !== 'shapeI' && randomShape[0] !== 'shapeO'){
-      copyOfActiveShape.xPosition = (this.state.canvasWidth/2) + 20
-    }
-    else{
-      copyOfActiveShape.xPosition = (this.state.canvasWidth/2)
-    }
+    copyOfActiveShape.xPosition = this.state.canvasWidth/2
     copyOfActiveShape.name = randomShape[0]
     copyOfActiveShape.yPosition = -1*randomShape[1]
     copyOfActiveShape.rotationStage = 0
     copyOfActiveShape.unitVertices = tetrisShapes[copyOfActiveShape.name].vertices
     this.setState({
       activeShape: copyOfActiveShape
-    },()=>this.drawShape(fresh))
+    },()=>this.drawShape())
     
     //restart timer
-    
+    this.downInterval = setInterval(()=>{
+      this.computerMove()
+    },this.state.timerInterval)
   }
   
   getRandomShape = () =>{
-    const shapeList = ['shapeL','shapeZ','shapeT','shapeI','shapeJ','shapeO','shapeS']
+    const shapeList = ['shapeL','shapeZ','shapeT']
     const randNum = Math.floor(Math.random() * (shapeList.length));
     //finding intital y bound so it does not get cutoff 
     const pickedShape = shapeList[randNum]
@@ -99,42 +63,27 @@ class App extends Component{
     
     return [pickedShape,initialBoundingBox[2]]
   }
-  drawShape = (fresh = false) =>{
-    
+  drawShape = () =>{
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
-    //console.log(this.state.activeShape.xPosition,this.state.activeShape.yPosition,this.state.activeShape.rotationStage,this.state.activeShape.boundingBox)
+    console.log(this.state.activeShape.xPosition,this.state.activeShape.yPosition,this.state.activeShape.rotationStage,this.state.activeShape.boundingBox)
     copyOfActiveShape.boundingBox = tetrisShapes.onDraw(this.canvasContext,this.state.activeShape)
 
     this.setState({
       activeShape: copyOfActiveShape
-    },()=>{
-      this.screenMatrix()
-      if(fresh){
-        this.downInterval = requestAnimationFrame(this.computerMove)
-      }
-      else{
-        requestAnimationFrame(this.computerMove)
-      }
     })
   }
   //downward moevent only
-  computerMove =(currentRefreshTime)=>{
-    if((currentRefreshTime-this.lastRefresh)>this.state.timerInterval){
-      this.lastRefresh = currentRefreshTime
-      this.clearCanvas()
-      let copyOfActiveShape = Object.assign({},this.state.activeShape)
-      if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
-        this.resetBoard()
-      }
-      else{
-        copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.yIncrement
-        this.setState({
-          activeShape: copyOfActiveShape
-        },()=>this.drawShape())
-      }
+  computerMove =()=>{
+    this.clearCanvas()
+    let copyOfActiveShape = Object.assign({},this.state.activeShape)
+    if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
+      this.resetBoard()
     }
     else{
-      requestAnimationFrame(this.computerMove)
+      copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.yIncrement
+      this.setState({
+        activeShape: copyOfActiveShape
+      },()=>this.drawShape())
     }
   }
   
@@ -146,6 +95,7 @@ class App extends Component{
     this.setState({
         activeShape: copyOfActiveShape
     },()=>this.drawShape())
+  //clearInterval(this.downInterval)
   }
   //left right movement only
   playerMove = (e)=>{

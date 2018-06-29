@@ -3,7 +3,7 @@ export const tetrisShapes = {
     onDraw: (canvasContext,activeShape)=>{
         const scaledVertices = tetrisShapes.scaleVertices(activeShape.unitVertices)
         canvasContext.beginPath()
-        canvasContext.fillStyle ="red";
+        canvasContext.fillStyle = tetrisShapes[activeShape.name].color;
         canvasContext.moveTo(activeShape.xPosition,activeShape.yPosition)
         scaledVertices.forEach((v)=>{
             canvasContext.lineTo(activeShape.xPosition+v[0],activeShape.yPosition+v[1])
@@ -48,17 +48,32 @@ export const tetrisShapes = {
             return [v[0]*tetrisShapes.blockSize,v[1]*tetrisShapes.blockSize]
         }))
     },
-    shapeL:{
-        //armpit origin [[1,0],[1,1],[-1,1],[-1,-2],[0,-2]]
-        //true center [[0,0.5],[1,0.5],[1,1.5],[-1,1.5],[-1,-1.5],[0,-1.5]]
-        vertices:[[1,0],[1,1],[-1,1],[-1,-2],[0,-2]]
+    shapeI:{
+        vertices:[[-2,0],[-2,-1],[2,-1],[2,0]],
+        color: 'cyan'
     },
-    shapeZ:{
-        //bottom armpit origin
-        vertices:[[-1,0],[-1,-1],[1,-1],[1,0],[2,0],[2,1],[0,1]]
+    shapeJ:{
+        vertices:[[0,-.5],[1.5,-.5],[1.5,.5],[-1.5,0.5],[-1.5,-1.5],[-.5,-1.5],[-.5,-.5],[0,-.5]],
+        color: 'blue'
+    },
+    shapeL:{
+        vertices:[[0,-.5],[-1.5,-.5],[-1.5,.5],[1.5,0.5],[1.5,-1.5],[.5,-1.5],[.5,-.5],[0,-.5]],
+        color: 'orange'
+    },
+    shapeO:{
+        vertices:[[0,-1],[1,-1],[1,1],[-1,1],[-1,-1],[0,-1]],
+        color: 'yellow'
+    },
+    shapeS:{
+        vertices:[[0,.5],[-1.5,.5],[-1.5,-.5],[-.5,-.5],[-.5,-1.5],[1.5,-1.5],[1.5,-.5],[.5,-.5],[.5,.5],[0,.5]],
+        color: 'green'
     },
     shapeT:{
-        //[[-1,0],[-1,-1],[2,-1],[2,0],[1,0],[1,1],[0,1]]
-        vertices:[[0,-.5],[1.5,-.5],[1.5,.5],[.5,.5],[.5,1.5],[-.5,1.5],[-.5,.5],[-1.5,.5],[-1.5,-.5],[0,-.5]]
-    }
+        vertices:[[0,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-.5,-1.5],[-.5,-.5],[-1.5,-.5],[-1.5,.5],[0,.5]],
+        color: 'purple'
+    },
+    shapeZ:{
+        vertices:[[0,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-1.5,-1.5],[-1.5,-.5],[-.5,-.5],[-.5,.5],[0,.5]],
+        color: 'red'
+    },
 }
