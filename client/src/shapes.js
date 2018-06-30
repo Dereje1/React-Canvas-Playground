@@ -1,16 +1,16 @@
 export const tetrisShapes = {
     blockSize:40,
     onDraw: (canvasContext,activeShape)=>{
-        const scaledVertices = tetrisShapes.scaleVertices(activeShape.unitVertices)
+        const absoluteVertices = tetrisShapes.getAbsoluteVertices(activeShape.xPosition,activeShape.yPosition,activeShape.unitVertices)
         canvasContext.beginPath()
         canvasContext.fillStyle = tetrisShapes[activeShape.name].color;
         canvasContext.moveTo(activeShape.xPosition,activeShape.yPosition)
-        scaledVertices.forEach((v)=>{
-            canvasContext.lineTo(activeShape.xPosition+v[0],activeShape.yPosition+v[1])
+        absoluteVertices.forEach((v)=>{
+            canvasContext.lineTo(v[0],v[1])
         })
         canvasContext.lineTo(activeShape.xPosition,activeShape.yPosition)
         canvasContext.fill();
-        return tetrisShapes.onBoundingBox(activeShape.xPosition,activeShape.yPosition,scaledVertices)
+        return [tetrisShapes.onBoundingBox(absoluteVertices),absoluteVertices]
     },
     onRotate: (oldVertices)=>{
         /*
@@ -34,46 +34,52 @@ export const tetrisShapes = {
         })
         return newVertices
     },
-    onBoundingBox: (xPosition,yPosition,scaledVertices)=> {
-        const xArr = scaledVertices.map((v)=>{
-            return v[0] + xPosition
+    onBoundingBox: (absoluteVertices)=> {
+        const xArr = absoluteVertices.map((v)=>{
+            return v[0]
         })
-        const yArr = scaledVertices.map((v)=>{
-            return v[1] + yPosition
+        const yArr = absoluteVertices.map((v)=>{
+            return v[1]
         })
         return [Math.min(...xArr),Math.max(...xArr),Math.min(...yArr),Math.max(...yArr)]
     },
-    scaleVertices: (unitVertices)=>{
-        return (unitVertices.map((v)=>{
-            return [v[0]*tetrisShapes.blockSize,v[1]*tetrisShapes.blockSize]
-        }))
+    getAbsoluteVertices: (x,y,unitVertices)=>{
+        return unitVertices.map((v)=>{
+            return [x+(v[0]*tetrisShapes.blockSize),y+(v[1]*tetrisShapes.blockSize)]
+        }) 
     },
     shapeI:{
-        vertices:[[-2,0],[-2,-1],[2,-1],[2,0]],
+        //[[-2,0],[-2,-1],[2,-1],[2,0]]
+        vertices:[[-1,0],[-2,0],[-2,-1],[-1,-1],[0,-1],[1,-1],[2,-1],[2,0],[1,0]],
         color: 'cyan'
     },
     shapeJ:{
-        vertices:[[0,-.5],[1.5,-.5],[1.5,.5],[-1.5,0.5],[-1.5,-1.5],[-.5,-1.5],[-.5,-.5],[0,-.5]],
+        //[[0,-.5],[1.5,-.5],[1.5,.5],[-1.5,0.5],[-1.5,-1.5],[-.5,-1.5],[-.5,-.5],[0,-.5]]
+        vertices:[[-.5,.5],[-1.5,.5],[-1.5,-.5],[-1.5,-1.5],[-.5,-1.5],[-.5,-.5],[0.5,-.5],[1.5,-.5],[1.5,.5],[.5,.5],[-.5,.5]],
         color: 'blue'
     },
     shapeL:{
-        vertices:[[0,-.5],[-1.5,-.5],[-1.5,.5],[1.5,0.5],[1.5,-1.5],[.5,-1.5],[.5,-.5],[0,-.5]],
+        //[[0,-.5],[-1.5,-.5],[-1.5,.5],[1.5,0.5],[1.5,-1.5],[.5,-1.5],[.5,-.5],[0,-.5]]
+        vertices:[[.5,.5],[1.5,.5],[1.5,-.5],[1.5,-1.5],[.5,-1.5],[.5,-.5],[-.5,-.5],[-1.5,-.5],[-1.5,.5],[-.5,.5],[.5,.5]],
         color: 'orange'
     },
     shapeO:{
-        vertices:[[0,-1],[1,-1],[1,1],[-1,1],[-1,-1],[0,-1]],
+        vertices:[[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1]],
         color: 'yellow'
     },
     shapeS:{
-        vertices:[[0,.5],[-1.5,.5],[-1.5,-.5],[-.5,-.5],[-.5,-1.5],[1.5,-1.5],[1.5,-.5],[.5,-.5],[.5,.5],[0,.5]],
+        //[[0,.5],[-1.5,.5],[-1.5,-.5],[-.5,-.5],[-.5,-1.5],[1.5,-1.5],[1.5,-.5],[.5,-.5],[.5,.5],[0,.5]]
+        vertices:[[-.5,.5],[-1.5,.5],[-1.5,-.5],[-.5,-.5],[-.5,-1.5],[.5,-1.5],[1.5,-1.5],[1.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]],
         color: 'green'
     },
     shapeT:{
-        vertices:[[0,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-.5,-1.5],[-.5,-.5],[-1.5,-.5],[-1.5,.5],[0,.5]],
+        //[[0,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-.5,-1.5],[-.5,-.5],[-1.5,-.5],[-1.5,.5],[0,.5]]
+        vertices:[[0,.5],[.5,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-.5,-1.5],[-.5,-.5],[-1.5,-.5],[-1.5,.5],[-.5,.5],[0,.5]],
         color: 'purple'
     },
     shapeZ:{
-        vertices:[[0,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-1.5,-1.5],[-1.5,-.5],[-.5,-.5],[-.5,.5],[0,.5]],
+        //[[0,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-1.5,-1.5],[-1.5,-.5],[-.5,-.5],[-.5,.5],[0,.5]]
+        vertices:[[.5,.5],[1.5,.5],[1.5,-.5],[.5,-.5],[.5,-1.5],[-.5,-1.5],[-1.5,-1.5],[-1.5,-.5],[-.5,-.5],[-.5,.5],[.5,.5]],
         color: 'red'
     },
 }
