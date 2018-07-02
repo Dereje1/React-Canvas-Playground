@@ -32,7 +32,59 @@ class App extends Component{
     //this.clearCanvas()
     console.log("Aborted!!")
   }
+  clearRows = (rows) =>{
+    let newOccupied =[]
+    rows.forEach((r)=>{
+      this.state.occupiedCells.forEach((o)=>{
+        const y = Number(o[0].split('-')[1])
+        const isRow = y === r 
+        if(!isRow)newOccupied.push(o)
+      })
+    })
+    //shift whole occupied block down
+    newOccupied = newOccupied.map((c)=>{
+      const x = Number(c[0].split('-')[0])
+      const y = Number(c[0].split('-')[1])
+      c[0] = x + '-' + (y+1)
+      return c
+    })
+    return newOccupied
+  }
 
+  winCheck = () =>{
+    //get the y component of grid coordinates of the active shape
+    let yCoord = this.state.activeCells.map((c)=>{
+      return c[1]
+    })
+    //get the unique y grid coordinates
+    yCoord = Array.from(new Set(yCoord))
+    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
+   const ans=[]
+    yCoord.forEach((coord)=>{
+      const filterOccupied = occupiedCellLocations.filter((o)=>{
+        const y = Number(o.split('-')[1])
+        return coord===y
+      })
+      if(filterOccupied.length) ans.push(filterOccupied)
+    })
+
+    //now add the active shape row grid coordinates to above
+    const newans = []
+    ans.forEach((row)=>{
+      const rowNumber = Number(row[0].split('-')[1])
+      const activeFilter = this.state.activeCells.filter((c)=>{
+        return c[1]===rowNumber
+      })
+      const tostringActive = activeFilter.map((a)=>{
+        return a[0] + '-' + a[1]
+      })
+      const potentialWinRow = [...row,...tostringActive]
+      const rowSize = this.state.canvasWidth/this.state.activeShape.unitBlockSize
+      if(potentialWinRow.length === rowSize) newans.push(rowNumber)
+    })
+
+    return newans.length ? newans : null
+  }
   getSideBlock = (direction)=>{
     const cellCheck = this.state.activeCells.map((c)=>{
       if(direction === 'L'){
@@ -42,8 +94,9 @@ class App extends Component{
         return [c[0]+1,c[1]].join('-')
       }
     })
+    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
     const blocked = cellCheck.filter((c)=>{
-      return this.state.occupiedCellLocations.includes(c)
+      return occupiedCellLocations.includes(c)
     })
     return blocked.length ? true : false
   }
@@ -59,8 +112,8 @@ class App extends Component{
   }
   occupiedSpace = (i,j,vertices) =>{
     const stringCell = (i+'-'+j)
-    
-    if(this.state.occupiedCellLocations.includes(stringCell)) {
+    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
+    if(occupiedCellLocations.includes(stringCell)) {
       console.log("collision Found @",stringCell)
       if(j===0){ //gameover
         this.endTick()
@@ -108,6 +161,7 @@ class App extends Component{
           if (q.length === 4){
             match = true
             this.occupiedSpace(i,j,elementVertices)
+            this.drawGrid(x[0],y[0],match)
           }
           else{
             continue
@@ -127,30 +181,30 @@ class App extends Component{
     })
   }
   runCollision = (x,y,vertices) =>{
-    let stringOccupied = this.state.activeCells.map((c)=>{
-      return c.join('-')
-    })
-    //console.log(this.state.activeCells,this.state.activeShape.boundingBox,(x+'-'+y))
-    //find element coordinates of active shape that are not already in the occupied cells
-    stringOccupied = stringOccupied.filter((c)=>{
-      return (!this.state.occupiedCellLocations.includes(c))
-    })
-    
-    //get the colors of active shape and map with coordinates
-    const colors = stringOccupied.map((c)=>{
-      return tetrisShapes[this.state.activeShape.name].color
-    })
-    const results = this.clearWinner(y)
-    if(results){
+    const winners = this.winCheck()
+    if(!winners){
+      let stringOccupied = this.state.activeCells.map((c)=>{
+        return c.join('-')
+      })
+      //console.log(this.state.activeCells,this.state.activeShape.boundingBox,(x+'-'+y))
+      //find element coordinates of active shape that are not already in the occupied cells
+      const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
+      stringOccupied = stringOccupied.filter((c)=>{
+        return (!occupiedCellLocations.includes(c))
+      })
+      
+      //get the colors of active shape and map with coordinates
+      stringOccupied = stringOccupied.map((c)=>{
+        return [c,tetrisShapes[this.state.activeShape.name].color]
+      })
       this.setState({
-        occupiedCellLocations:[...results[0],...stringOccupied],
-        occupiedCellColors:[...results[1],...colors]
+        occupiedCells:[...this.state.occupiedCells,...stringOccupied],
       })
     }
     else{
+      const newOccupied = this.clearRows(winners)
       this.setState({
-        occupiedCellLocations:[...this.state.occupiedCellLocations,...stringOccupied],
-        occupiedCellColors:[...this.state.occupiedCellColors,...colors]
+        occupiedCells:newOccupied,
       })
     }
 
@@ -207,10 +261,10 @@ class App extends Component{
   drawRuble = () =>{
     
     const b = this.state.activeShape.unitBlockSize
-    this.state.occupiedCellLocations.forEach((cell,idx)=>{
-        const x = Number(cell.split('-')[0])
-        const y = Number(cell.split('-')[1])
-        const col = this.state.occupiedCellColors[idx]
+    this.state.occupiedCells.forEach((cell,idx)=>{
+        const x = Number(cell[0].split('-')[0])
+        const y = Number(cell[0].split('-')[1])
+        const col = cell[1]
         this.canvasContext.fillStyle=col;
         this.canvasContext.fillRect(x*b,y*b,b,b); 
     })
@@ -372,8 +426,7 @@ const initialState={ //determine what needs to go into state, a very small porti
   canvasHeight:640,
   timerInterval:700,
   activeCells:[],
-  occupiedCellLocations:[],
-  occupiedCellColors:[],
+  occupiedCells:[],
   paused:false,
   activeShape:{
     name:'shapeZ',
