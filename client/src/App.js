@@ -5,26 +5,7 @@ import { tetrisShapes } from './shapes'
 class App extends Component{
   constructor(props){
     super(props)
-    this.state={ //determine what needs to go into state, a very small portion here
-      canvasWidth:640,
-      canvasHeight:640,
-      timerInterval:700,
-      xIncrement:40,
-      yIncrement:40,
-      activeCells:[],
-      occupiedCellLocations:[],
-      occupiedCellColors:[],
-      run: true,
-      activeShape:{
-        name:'shapeZ',
-        xPosition:0,
-        yPosition:0,
-        unitVertices:[],
-        absoluteVertices:[],
-        boundingBox:[],
-        rotationStage:0,
-      }
-    }
+    this.state=initialState
   }
   componentDidMount(){
     const canvas = this.refs.canvas
@@ -40,32 +21,35 @@ class App extends Component{
   }
   
   startTick = () =>{
-    if(!this.downInterval){
-      this.downInterval = requestAnimationFrame(this.tick)
-    }
+    this.setState(initialState)
+    if(this.downInterval)clearInterval(this.downInterval)
+    this.downInterval = setInterval(()=>{
+      this.computerMove()
+    },this.state.timerInterval)
   }
   endTick = () =>{
-    window.cancelAnimationFrame(this.downInterval)
+    clearInterval(this.downInterval)
+    //this.clearCanvas()
     console.log("Aborted!!")
   }
-  tick = (currentRefreshTime=0) => {
-    //console.log(this.downInterval)
-    if((currentRefreshTime-this.lastRefresh)>this.state.timerInterval){
-      this.lastRefresh = currentRefreshTime
-       this.computerMove()
-    }
-    if(this.state.run) {
-      requestAnimationFrame(this.tick)
-    }
-    else{
-      this.endTick()
-    }
-    //
+
+  getSideBlock = (direction)=>{
+    const cellCheck = this.state.activeCells.map((c)=>{
+      if(direction === 'L'){
+        return [c[0]-1,c[1]].join('-')
+      }
+      else{
+        return [c[0]+1,c[1]].join('-')
+      }
+    })
+    const blocked = cellCheck.filter((c)=>{
+      return this.state.occupiedCellLocations.includes(c)
+    })
+    return blocked.length ? true : false
   }
-  
   drawGrid = (x,y,occupied) =>{
-    const b = tetrisShapes.blockSize
-    let col = occupied ? 'grey' : 'green'
+    const b = this.state.activeShape.unitBlockSize
+    let col = occupied ? 'grey' : 'white'
     this.canvasContext.beginPath();
     this.canvasContext.lineWidth="3";
     this.canvasContext.strokeStyle=col;
@@ -73,12 +57,26 @@ class App extends Component{
     this.canvasContext.stroke();
 
   }
-  
+  occupiedSpace = (i,j,vertices) =>{
+    const stringCell = (i+'-'+j)
+    
+    if(this.state.occupiedCellLocations.includes(stringCell)) {
+      console.log("collision Found @",stringCell)
+      if(j===0){ //gameover
+        this.endTick()
+        return
+      }
+      else{
+        this.runCollision(i,j,vertices)
+      }
+      
+    }
+  }
   screenMatrix = () => {
-
-    const b = tetrisShapes.blockSize
+    const b = this.state.activeShape.unitBlockSize
     const blocksPerRow = this.state.canvasWidth / b
     let active = []
+    //add origin to absolute vertices needed for check
     const absoluteVerticesWithOrigin = [...this.state.activeShape.absoluteVertices,[this.state.activeShape.xPosition,this.state.activeShape.yPosition]]
 
     const stringifyAbsVertices = absoluteVerticesWithOrigin.map((v)=>{
@@ -87,6 +85,7 @@ class App extends Component{
     for(let i=0;i < blocksPerRow ; i++){
       
       for(let j=0; j< blocksPerRow ; j++){
+        //check if current unit screen element is within bounding box of active shape
         const x = [i*b,(i*b)+b]
         const y = [j*b,(j*b)+b]
         
@@ -95,57 +94,53 @@ class App extends Component{
         
         let match = false
         if(xIncluded && yIncluded){
+          //it is within bounding box
+          //find true vertices of unit element
           const elementVertices = [[i*b,j*b],[i*b,(j*b)+b],[(i*b)+b,(j*b)+b],[(i*b)+b,j*b]]
           const stringElementVertices = elementVertices.map((v)=>{
             return v.join('-')
           })
+          //how many of the element vertices are included in the absolute vertices ??
           const q = stringElementVertices.filter((v)=>{
             return stringifyAbsVertices.includes(v)
           })
-
+          //Must have all 4 vertices included to verify element is within the shape
           if (q.length === 4){
             match = true
+            this.occupiedSpace(i,j,elementVertices)
           }
           else{
             continue
           }
-          const stringCell = (i+'-'+j)
-          if(this.state.occupiedCellLocations.includes(stringCell)) {
-            console.log("collision Found @",stringCell)
-            if(j===0){
-              this.setState({
-                run: false
-              },()=>this.clearCanvas())
-            }
-            else{
-              this.runCollision(i,j)
-            }
-            
-          }
+          
           active.push([i,j])
         }
         else{
+          //if unit screen element is not within bounding box then go to next row / same column
+          //this.drawGrid(x[0],y[0],match)
           continue
         }
-        this.drawGrid(x[0],y[0],match)
       }
     }
     this.setState({
       activeCells:active
     })
   }
-  runCollision = (x,y) =>{
-    
+  runCollision = (x,y,vertices) =>{
     let stringOccupied = this.state.activeCells.map((c)=>{
       return c.join('-')
     })
+    //console.log(this.state.activeCells,this.state.activeShape.boundingBox,(x+'-'+y))
+    //find element coordinates of active shape that are not already in the occupied cells
     stringOccupied = stringOccupied.filter((c)=>{
       return (!this.state.occupiedCellLocations.includes(c))
     })
+    
+    //get the colors of active shape and map with coordinates
     const colors = stringOccupied.map((c)=>{
       return tetrisShapes[this.state.activeShape.name].color
     })
-    const results = this.clearWinner(x,y)
+    const results = this.clearWinner(y)
     if(results){
       this.setState({
         occupiedCellLocations:[...results[0],...stringOccupied],
@@ -192,7 +187,7 @@ class App extends Component{
     //finding intital y bound so it does not get cutoff 
     const pickedShape = shapeList[randNum]
     const x = (pickedShape !== 'shapeI' && pickedShape !== 'shapeO') ? this.state.canvasWidth/2 + 20 : this.state.canvasWidth/2
-    const initialScaledVertices = tetrisShapes.getAbsoluteVertices(x,0,tetrisShapes[pickedShape].vertices)
+    const initialScaledVertices = tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,x,0,tetrisShapes[pickedShape].vertices)
     
     const initialBoundingBox = tetrisShapes.onBoundingBox(initialScaledVertices)
     
@@ -211,7 +206,7 @@ class App extends Component{
 
   drawRuble = () =>{
     
-    const b = tetrisShapes.blockSize
+    const b = this.state.activeShape.unitBlockSize
     this.state.occupiedCellLocations.forEach((cell,idx)=>{
         const x = Number(cell.split('-')[0])
         const y = Number(cell.split('-')[1])
@@ -220,9 +215,9 @@ class App extends Component{
         this.canvasContext.fillRect(x*b,y*b,b,b); 
     })
   }
-  clearWinner = (column,row) =>{
+  clearWinner = (row) =>{
     let result = null
-    const b = this.state.canvasWidth/tetrisShapes.blockSize
+    const b = this.state.canvasWidth/this.state.activeShape.unitBlockSize
     const potential = this.state.occupiedCellLocations.filter((cell)=>{
         const y = Number(cell.split('-')[1])
         return y===row
@@ -263,19 +258,14 @@ class App extends Component{
   }
   //downward moevent only
   computerMove = () =>{
-      //console.log(this.state.activeShape.boundingBox[2])
+      if (this.state.paused) return
       this.clearCanvas()
       let copyOfActiveShape = Object.assign({},this.state.activeShape)
       if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
-        this.runCollision()
-      }
-      else if(this.state.activeShape.boundingBox[2]<0){
-        this.setState({
-          run:false
-        })
+        this.runCollision(3,0)
       }
       else{
-        copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.yIncrement
+        copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
         this.setState({
           activeShape: copyOfActiveShape
         },()=>this.drawShape())
@@ -298,37 +288,55 @@ class App extends Component{
     const up = e.keyCode===38
     const down = e.keyCode===40
     
+    
     if(!(left||right||up||down)) return //do nothing for any other keypress
   
     //check X boundaries 
-    const leftOutOfBound = left && (this.state.activeShape.boundingBox[0] - this.state.xIncrement) < 0
-    const rightOutOfBound = right && (this.state.activeShape.boundingBox[1] + this.state.xIncrement) > this.state.canvasWidth
+    const leftOutOfBound = left && (this.state.activeShape.boundingBox[0] - this.state.activeShape.unitBlockSize) < 0
+    const rightOutOfBound = right && (this.state.activeShape.boundingBox[1] + this.state.activeShape.unitBlockSize) > this.state.canvasWidth
     if(leftOutOfBound || rightOutOfBound) return
 
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
     if(left){
-      copyOfActiveShape.xPosition = copyOfActiveShape.xPosition - this.state.xIncrement
+      if(this.getSideBlock('L'))return
+      copyOfActiveShape.xPosition = copyOfActiveShape.xPosition - this.state.activeShape.unitBlockSize
       this.clearCanvas()
       this.setState({
         activeShape: copyOfActiveShape
       },()=>this.drawShape())
     }
     else if(right){
-      copyOfActiveShape.xPosition = copyOfActiveShape.xPosition + this.state.xIncrement
+      if(this.getSideBlock('R'))return
+      copyOfActiveShape.xPosition = copyOfActiveShape.xPosition + this.state.activeShape.unitBlockSize
+      this.clearCanvas()
+      this.setState({
+        activeShape: copyOfActiveShape
+      },()=>this.drawShape())
+    }
+    else if(down){
+      if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
+        this.runCollision()
+        return
+      }
+      copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
       this.clearCanvas()
       this.setState({
         activeShape: copyOfActiveShape
       },()=>this.drawShape())
     }
     else{
-      up ? this.rotation("CCW") : this.rotation("CW")
+      this.rotation()
     }
   }
   //clear canvas
   clearCanvas = ()=>{
     this.canvasContext.clearRect(0, 0, this.state.canvasWidth, this.state.canvasHeight);
   }
-  
+  handlePause = () =>{
+    this.setState({
+      paused: this.state.paused ? false :true
+    })
+  }
   render(){
     return(
       <div className="container">
@@ -339,12 +347,42 @@ class App extends Component{
         tabIndex="0"
         onKeyDown={(e)=>this.playerMove(e)}
         />
-      <button className="reset" onClick={()=>this.resetBoard()}>
-        Reset
-       </button>
+      <div className ='controls'>
+        <button className="reset" onClick={()=>this.resetBoard(true)}>
+          Reset
+        </button>
+        <label>
+          Pause:
+          <input
+            name="isGoing"
+            type="checkbox"
+            checked={this.state.paused}
+            onChange={this.handlePause} />
+        </label>
+       </div>
       </div>
     )
   }
 }
 
 export default App;
+
+const initialState={ //determine what needs to go into state, a very small portion here
+  canvasWidth:640,
+  canvasHeight:640,
+  timerInterval:700,
+  activeCells:[],
+  occupiedCellLocations:[],
+  occupiedCellColors:[],
+  paused:false,
+  activeShape:{
+    name:'shapeZ',
+    unitBlockSize:40,
+    xPosition:0,
+    yPosition:0,
+    unitVertices:[],
+    absoluteVertices:[],
+    boundingBox:[],
+    rotationStage:0,
+  }
+}

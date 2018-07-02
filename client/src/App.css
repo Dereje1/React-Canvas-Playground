@@ -6,10 +6,19 @@ body{
   flex-direction:column;
   align-items: center
 }
+
+.controls{
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
 .reset {
   margin-top:10px;
+  margin-right: 20px;
   height:50px;
   font-size:25px;
   width:640px;
   cursor:pointer;
   }
+  

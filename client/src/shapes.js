@@ -1,7 +1,7 @@
 export const tetrisShapes = {
-    blockSize:40,
     onDraw: (canvasContext,activeShape)=>{
-        const absoluteVertices = tetrisShapes.getAbsoluteVertices(activeShape.xPosition,activeShape.yPosition,activeShape.unitVertices)
+        const blockSize = activeShape.unitBlockSize
+        const absoluteVertices = tetrisShapes.getAbsoluteVertices(blockSize,activeShape.xPosition,activeShape.yPosition,activeShape.unitVertices)
         canvasContext.beginPath()
         canvasContext.fillStyle = tetrisShapes[activeShape.name].color;
         canvasContext.moveTo(activeShape.xPosition,activeShape.yPosition)
@@ -43,9 +43,9 @@ export const tetrisShapes = {
         })
         return [Math.min(...xArr),Math.max(...xArr),Math.min(...yArr),Math.max(...yArr)]
     },
-    getAbsoluteVertices: (x,y,unitVertices)=>{
+    getAbsoluteVertices: (blockSize,x,y,unitVertices)=>{
         return unitVertices.map((v)=>{
-            return [x+(v[0]*tetrisShapes.blockSize),y+(v[1]*tetrisShapes.blockSize)]
+            return [x+(v[0]*blockSize),y+(v[1]*blockSize)]
         }) 
     },
     shapeI:{
