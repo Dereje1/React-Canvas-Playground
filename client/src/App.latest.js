@@ -2,8 +2,6 @@ import React, { Component } from 'react';
 import './App.css';
 
 import { tetrisShapes } from './shapes'
-import {occupiedSpace, runCollision} from './collision'
-
 class App extends Component{
   constructor(props){
     super(props)
@@ -22,12 +20,6 @@ class App extends Component{
     this.endTick()
   }
   
-  speedTick = () =>{
-    if(this.downInterval)clearInterval(this.downInterval)
-    this.downInterval = setInterval(()=>{
-      this.computerMove()
-    },this.state.timerInterval)
-  }
   startTick = () =>{
     this.setState(initialState)
     if(this.downInterval)clearInterval(this.downInterval)
@@ -40,7 +32,68 @@ class App extends Component{
     //this.clearCanvas()
     console.log("Aborted!!")
   }
+  clearRows = (rows) =>{
+    //console.log("Winner rows found ", rows)
+    let newOccupied =[]
+    rows.forEach((r)=>{
+      this.state.occupiedCells.forEach((o,idx)=>{
+        const x = Number(o[0].split('-')[0])
+        const y = Number(o[0].split('-')[1])
+        const isAbove = y < r
+        if(isAbove) {
+          newOccupied.push([x + '-' + (y+1), ])
+        }else{
+          newOccupied.push(o)
+        }
+        //if(!isRow)newOccupied.push(o)
+      })
+    })
+    /*
+    //shift whole occupied block down
+    newOccupied = newOccupied.map((c)=>{
+      const x = Number(c[0].split('-')[0])
+      const y = Number(c[0].split('-')[1])
+      c[0] = x + '-' + (y+1)
+      return c
+    })
+    */
+    return newOccupied
+  }
 
+  winCheck = () =>{
+    //get the y component of grid coordinates of the active shape
+    let yCoord = this.state.activeCells.map((c)=>{
+      return c[1]
+    })
+    //get the unique y grid coordinates
+    yCoord = Array.from(new Set(yCoord))
+    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
+   const ans=[]
+    yCoord.forEach((coord)=>{
+      const filterOccupied = occupiedCellLocations.filter((o)=>{
+        const y = Number(o.split('-')[1])
+        return coord===y
+      })
+      if(filterOccupied.length) ans.push(filterOccupied)
+    })
+    console.log(ans)
+    //now add the active shape row grid coordinates to above
+    const newans = []
+    ans.forEach((row)=>{
+      const rowNumber = Number(row[0].split('-')[1])
+      const activeFilter = this.state.activeCells.filter((c)=>{
+        return c[1]===rowNumber
+      })
+      const tostringActive = activeFilter.map((a)=>{
+        return a[0] + '-' + a[1]
+      })
+      const potentialWinRow = [...row,...tostringActive]
+      const rowSize = this.state.canvasWidth/this.state.activeShape.unitBlockSize
+      if(potentialWinRow.length >= rowSize) newans.push(rowNumber)
+    })
+    console.log(newans)
+    return newans.length ? newans : null
+  }
   getSideBlock = (direction)=>{
     const cellCheck = this.state.activeCells.map((c)=>{
       if(direction === 'L'){
@@ -66,7 +119,21 @@ class App extends Component{
     this.canvasContext.stroke();
 
   }
-
+  occupiedSpace = (i,j,vertices) =>{
+    const stringCell = (i+'-'+j)
+    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
+    if(occupiedCellLocations.includes(stringCell)) {
+      //console.log("collision Found @",stringCell)
+      if(j===0){ //gameover
+        this.endTick()
+        return
+      }
+      else{
+        this.runCollision(i,j,vertices)
+      }
+      
+    }
+  }
   screenMatrix = () => {
     const b = this.state.activeShape.unitBlockSize
     const blocksPerRow = this.state.canvasWidth / b
@@ -102,19 +169,7 @@ class App extends Component{
           //Must have all 4 vertices included to verify element is within the shape
           if (q.length === 4){
             match = true
-            const isOccupied = occupiedSpace(i,j,this.state)
-            if(isOccupied){
-              if(isOccupied==='done'){
-                this.endTick()
-                return
-              }
-              let incrementLines = isOccupied[1] ? isOccupied[1] : 0
-              this.setState({
-                occupiedCells:isOccupied[0],
-                linesCleared: this.state.linesCleared + incrementLines
-              },this.resetBoard())
-              return
-            } 
+            this.occupiedSpace(i,j,elementVertices)
             this.drawGrid(x[0],y[0],match)
           }
           else{
@@ -134,7 +189,37 @@ class App extends Component{
       activeCells:active
     })
   }
+  runCollision = (x,y,vertices) =>{
+    const winners = this.winCheck()
+    if(!winners){
+      let stringOccupied = this.state.activeCells.map((c)=>{
+        return c.join('-')
+      })
+      //console.log(this.state.activeCells,this.state.activeShape.boundingBox,(x+'-'+y))
+      //find element coordinates of active shape that are not already in the occupied cells
+      const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
+      stringOccupied = stringOccupied.filter((c)=>{
+        return (!occupiedCellLocations.includes(c))
+      })
+      
+      //get the colors of active shape and map with coordinates
+      stringOccupied = stringOccupied.map((c)=>{
+        return [c,tetrisShapes[this.state.activeShape.name].color]
+      })
+      this.setState({
+        occupiedCells:[...this.state.occupiedCells,...stringOccupied],
+      })
+    }
+    else{
+      //console.log(winners)
+      const newOccupied = this.clearRows(winners)
+      this.setState({
+        occupiedCells:newOccupied,
+      })
+    }
 
+    this.resetBoard()
+  }
 
   resetBoard =(fresh=false) =>{ //clear and restart
     if(fresh) this.startTick()
@@ -186,39 +271,62 @@ class App extends Component{
   drawRuble = () =>{
     
     const b = this.state.activeShape.unitBlockSize
-    this.state.occupiedCells.forEach((cell)=>{
+    this.state.occupiedCells.forEach((cell,idx)=>{
         const x = Number(cell[0].split('-')[0])
         const y = Number(cell[0].split('-')[1])
-        //filled rects
-        this.canvasContext.fillStyle=cell[1];
+        const col = cell[1]
+        this.canvasContext.fillStyle=col;
         this.canvasContext.fillRect(x*b,y*b,b,b); 
-        //draw borders for rubble
-        this.canvasContext.beginPath();
-        this.canvasContext.lineWidth="3";
-        this.canvasContext.strokeStyle='grey';
-        this.canvasContext.rect(x*b,y*b,b,b); 
-        this.canvasContext.stroke();
     })
   }
-
+  clearWinner = (row) =>{
+    let result = null
+    const b = this.state.canvasWidth/this.state.activeShape.unitBlockSize
+    const potential = this.state.occupiedCellLocations.filter((cell)=>{
+        const y = Number(cell.split('-')[1])
+        return y===row
+    })
+    if(b===potential.length){
+      console.log(`Winner Found on row ${row}`)
+      //let copyOfCells = [...state.occupiedCellLocations]
+      let newOccupiedCells = this.state.occupiedCellLocations.reduce((prev,curr)=>{
+        const x = Number(curr.split('-')[0])
+        const y = Number(curr.split('-')[1])
+        if (y!==row){
+          return [...prev,curr]
+        }
+        else{
+          return prev
+        }
+      },[])
+      const newOccupiedColors = this.state.occupiedCellColors.reduce((prev,curr)=>{
+        const x = Number(curr.split('-')[0])
+        const y = Number(curr.split('-')[1])
+        if (y!==row){
+          return [...prev,curr]
+        }
+        else{
+          return prev
+        }
+      },[])
+      newOccupiedCells = newOccupiedCells.map((cell)=>{
+        const x = Number(cell.split('-')[0])
+        let y = Number(cell.split('-')[1])
+        y = y+1
+        const newPos = x + '-' + y
+        return newPos
+      })
+      result = [newOccupiedCells,newOccupiedColors]
+    }
+    return result
+  }
   //downward moevent only
   computerMove = () =>{
       if (this.state.paused) return
-      if(this.state.linesCleared > 4 && this.state.timerInterval > 250){
-        this.setState({
-          linesCleared:0,
-          timerInterval: this.state.timerInterval - 150
-        },()=>this.speedTick())
-      }
       this.clearCanvas()
       let copyOfActiveShape = Object.assign({},this.state.activeShape)
-      if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){//bottom of screen
-        const collisionResult = runCollision(this.state)
-        let incrementLines = collisionResult[1] ? collisionResult[1] : 0
-        this.setState({
-          occupiedCells:collisionResult[0],
-          linesCleared: this.state.linesCleared + incrementLines,
-        },()=>this.resetBoard())
+      if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
+        this.runCollision(3,0)
       }
       else{
         copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
@@ -271,7 +379,7 @@ class App extends Component{
     }
     else if(down){
       if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
-        runCollision(this.state)
+        this.runCollision()
         return
       }
       copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
@@ -330,7 +438,6 @@ const initialState={ //determine what needs to go into state, a very small porti
   activeCells:[],
   occupiedCells:[],
   paused:false,
-  linesCleared:0,
   activeShape:{
     name:'shapeZ',
     unitBlockSize:40,
