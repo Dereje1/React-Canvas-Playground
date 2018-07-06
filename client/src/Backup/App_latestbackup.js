@@ -2,6 +2,8 @@ import React, { Component } from 'react';
 import './App.css';
 
 import { tetrisShapes } from './shapes'
+import occupiedSpace from './collision'
+
 class App extends Component{
   constructor(props){
     super(props)
@@ -9,6 +11,7 @@ class App extends Component{
   }
   componentDidMount(){
     const canvas = this.refs.canvas
+    canvas.focus()
     canvas.style.backgroundColor = "black";
     //setting context so it can be accesible everywhere in the class , maybe a better way ?
     this.canvasContext = canvas.getContext('2d') 
@@ -20,11 +23,12 @@ class App extends Component{
     this.endTick()
   }
   
-  startTick = () =>{
-    this.setState(initialState)
+
+  startTick = (speed) =>{
+    if(!speed) this.setState(initialState)
     if(this.downInterval)clearInterval(this.downInterval)
     this.downInterval = setInterval(()=>{
-      this.computerMove()
+      this.tick()
     },this.state.timerInterval)
   }
   endTick = () =>{
@@ -32,70 +36,20 @@ class App extends Component{
     //this.clearCanvas()
     console.log("Aborted!!")
   }
-  clearRows = (rows) =>{
-    //console.log("Winner rows found ", rows)
-    let newOccupied =[]
-    rows.forEach((r)=>{
-      this.state.occupiedCells.forEach((o,idx)=>{
-        const x = Number(o[0].split('-')[0])
-        const y = Number(o[0].split('-')[1])
-        const isAbove = y < r
-        if(isAbove) {
-          newOccupied.push([x + '-' + (y+1), ])
-        }else{
-          newOccupied.push(o)
-        }
-        //if(!isRow)newOccupied.push(o)
-      })
-    })
-    /*
-    //shift whole occupied block down
-    newOccupied = newOccupied.map((c)=>{
-      const x = Number(c[0].split('-')[0])
-      const y = Number(c[0].split('-')[1])
-      c[0] = x + '-' + (y+1)
-      return c
-    })
-    */
-    return newOccupied
-  }
-
-  winCheck = () =>{
-    //get the y component of grid coordinates of the active shape
-    let yCoord = this.state.activeCells.map((c)=>{
-      return c[1]
-    })
-    //get the unique y grid coordinates
-    yCoord = Array.from(new Set(yCoord))
-    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
-   const ans=[]
-    yCoord.forEach((coord)=>{
-      const filterOccupied = occupiedCellLocations.filter((o)=>{
-        const y = Number(o.split('-')[1])
-        return coord===y
-      })
-      if(filterOccupied.length) ans.push(filterOccupied)
-    })
-    console.log(ans)
-    //now add the active shape row grid coordinates to above
-    const newans = []
-    ans.forEach((row)=>{
-      const rowNumber = Number(row[0].split('-')[1])
-      const activeFilter = this.state.activeCells.filter((c)=>{
-        return c[1]===rowNumber
-      })
-      const tostringActive = activeFilter.map((a)=>{
-        return a[0] + '-' + a[1]
-      })
-      const potentialWinRow = [...row,...tostringActive]
-      const rowSize = this.state.canvasWidth/this.state.activeShape.unitBlockSize
-      if(potentialWinRow.length >= rowSize) newans.push(rowNumber)
-    })
-    console.log(newans)
-    return newans.length ? newans : null
-  }
+  tick = () =>{
+    if (this.state.paused) return
+    if(this.state.points.linesCleared > 4 && this.state.timerInterval > 250){
+      let copyOfPoints = Object.assign({},this.state.points)
+      copyOfPoints.linesCleared = 0
+      this.setState({
+        points:copyOfPoints,
+        timerInterval: this.state.timerInterval - 150
+      },()=>this.startTick(true))
+    }
+    this.yMove()
+}
   getSideBlock = (direction)=>{
-    const cellCheck = this.state.activeCells.map((c)=>{
+    const cellCheck = this.state.activeShape.cells.map((c)=>{
       if(direction === 'L'){
         return [c[0]-1,c[1]].join('-')
       }
@@ -119,25 +73,14 @@ class App extends Component{
     this.canvasContext.stroke();
 
   }
-  occupiedSpace = (i,j,vertices) =>{
-    const stringCell = (i+'-'+j)
-    const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
-    if(occupiedCellLocations.includes(stringCell)) {
-      //console.log("collision Found @",stringCell)
-      if(j===0){ //gameover
-        this.endTick()
-        return
-      }
-      else{
-        this.runCollision(i,j,vertices)
-      }
-      
-    }
-  }
+
   screenMatrix = () => {
     const b = this.state.activeShape.unitBlockSize
     const blocksPerRow = this.state.canvasWidth / b
-    let active = []
+    const blocksPerColumn = this.state.canvasHeight / b
+    let copyOfActiveShape = Object.assign({},this.state.activeShape)
+    let copyOfPoints = Object.assign({},this.state.points)
+    copyOfActiveShape.cells =[]
     //add origin to absolute vertices needed for check
     const absoluteVerticesWithOrigin = [...this.state.activeShape.absoluteVertices,[this.state.activeShape.xPosition,this.state.activeShape.yPosition]]
 
@@ -146,7 +89,7 @@ class App extends Component{
     })
     for(let i=0;i < blocksPerRow ; i++){
       
-      for(let j=0; j< blocksPerRow ; j++){
+      for(let j=0; j< blocksPerColumn ; j++){
         //check if current unit screen element is within bounding box of active shape
         const x = [i*b,(i*b)+b]
         const y = [j*b,(j*b)+b]
@@ -166,69 +109,49 @@ class App extends Component{
           const q = stringElementVertices.filter((v)=>{
             return stringifyAbsVertices.includes(v)
           })
-          //Must have all 4 vertices included to verify element is within the shape
+          //Must have all 4 vertices included to verify element is within the shape , other wise just go to
+          //the next cell down in the same column
           if (q.length === 4){
             match = true
-            this.occupiedSpace(i,j,elementVertices)
+            const isOccupied = occupiedSpace(i,j,this.state)
+            if(isOccupied){
+              if(isOccupied==='done'){
+                this.endTick()
+                return
+              }
+              const incrementLines = isOccupied[1] ? isOccupied[1] : 0
+              copyOfPoints.linesCleared = this.state.points.linesCleared + incrementLines
+              copyOfPoints.totalLinesCleared = incrementLines!==0 ? this.state.points.totalLinesCleared + incrementLines : this.state.points.totalLinesCleared
+              this.setState({
+                occupiedCells:isOccupied[0],
+                points: copyOfPoints
+              },()=>this.resetBoard())
+              return
+            } 
             this.drawGrid(x[0],y[0],match)
-          }
-          else{
-            continue
-          }
-          
-          active.push([i,j])
-        }
-        else{
-          //if unit screen element is not within bounding box then go to next row / same column
-          //this.drawGrid(x[0],y[0],match)
-          continue
+            copyOfActiveShape.cells.push([i,j])
+          }      
         }
       }
     }
     this.setState({
-      activeCells:active
+      activeShape: copyOfActiveShape
     })
   }
-  runCollision = (x,y,vertices) =>{
-    const winners = this.winCheck()
-    if(!winners){
-      let stringOccupied = this.state.activeCells.map((c)=>{
-        return c.join('-')
-      })
-      //console.log(this.state.activeCells,this.state.activeShape.boundingBox,(x+'-'+y))
-      //find element coordinates of active shape that are not already in the occupied cells
-      const occupiedCellLocations = this.state.occupiedCells.map((c)=> c[0])
-      stringOccupied = stringOccupied.filter((c)=>{
-        return (!occupiedCellLocations.includes(c))
-      })
-      
-      //get the colors of active shape and map with coordinates
-      stringOccupied = stringOccupied.map((c)=>{
-        return [c,tetrisShapes[this.state.activeShape.name].color]
-      })
-      this.setState({
-        occupiedCells:[...this.state.occupiedCells,...stringOccupied],
-      })
-    }
-    else{
-      //console.log(winners)
-      const newOccupied = this.clearRows(winners)
-      this.setState({
-        occupiedCells:newOccupied,
-      })
-    }
 
-    this.resetBoard()
-  }
 
   resetBoard =(fresh=false) =>{ //clear and restart
-    if(fresh) this.startTick()
+    if(fresh) {
+      this.refs.canvas.focus()
+      this.startTick()
+    }
      //clear timer
     this.clearCanvas() //clear canvas
     const randomShape = this.getRandomShape()
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
+    //I and O shapes need right offset
     if(randomShape[0] !== 'shapeI' && randomShape[0] !== 'shapeO'){
-      copyOfActiveShape.xPosition = (this.state.canvasWidth/2) + 20
+      copyOfActiveShape.xPosition = (this.state.canvasWidth/2) + this.state.activeShape.unitBlockSize/2
     }
     else{
       copyOfActiveShape.xPosition = (this.state.canvasWidth/2)
@@ -250,7 +173,7 @@ class App extends Component{
     const randNum = Math.floor(Math.random() * (shapeList.length));
     //finding intital y bound so it does not get cutoff 
     const pickedShape = shapeList[randNum]
-    const x = (pickedShape !== 'shapeI' && pickedShape !== 'shapeO') ? this.state.canvasWidth/2 + 20 : this.state.canvasWidth/2
+    const x = (pickedShape !== 'shapeI' && pickedShape !== 'shapeO') ? this.state.canvasWidth/2 + this.state.activeShape.unitBlockSize/2 : this.state.canvasWidth/2
     const initialScaledVertices = tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,x,0,tetrisShapes[pickedShape].vertices)
     
     const initialBoundingBox = tetrisShapes.onBoundingBox(initialScaledVertices)
@@ -271,70 +194,47 @@ class App extends Component{
   drawRuble = () =>{
     
     const b = this.state.activeShape.unitBlockSize
-    this.state.occupiedCells.forEach((cell,idx)=>{
+    this.state.occupiedCells.forEach((cell)=>{
         const x = Number(cell[0].split('-')[0])
         const y = Number(cell[0].split('-')[1])
-        const col = cell[1]
-        this.canvasContext.fillStyle=col;
+        //filled rects
+        this.canvasContext.fillStyle=cell[1];
         this.canvasContext.fillRect(x*b,y*b,b,b); 
+        //draw borders for rubble
+        this.canvasContext.beginPath();
+        this.canvasContext.lineWidth="3";
+        this.canvasContext.strokeStyle='grey';
+        this.canvasContext.rect(x*b,y*b,b,b); 
+        this.canvasContext.stroke();
     })
   }
-  clearWinner = (row) =>{
-    let result = null
-    const b = this.state.canvasWidth/this.state.activeShape.unitBlockSize
-    const potential = this.state.occupiedCellLocations.filter((cell)=>{
-        const y = Number(cell.split('-')[1])
-        return y===row
-    })
-    if(b===potential.length){
-      console.log(`Winner Found on row ${row}`)
-      //let copyOfCells = [...state.occupiedCellLocations]
-      let newOccupiedCells = this.state.occupiedCellLocations.reduce((prev,curr)=>{
-        const x = Number(curr.split('-')[0])
-        const y = Number(curr.split('-')[1])
-        if (y!==row){
-          return [...prev,curr]
-        }
-        else{
-          return prev
-        }
-      },[])
-      const newOccupiedColors = this.state.occupiedCellColors.reduce((prev,curr)=>{
-        const x = Number(curr.split('-')[0])
-        const y = Number(curr.split('-')[1])
-        if (y!==row){
-          return [...prev,curr]
-        }
-        else{
-          return prev
-        }
-      },[])
-      newOccupiedCells = newOccupiedCells.map((cell)=>{
-        const x = Number(cell.split('-')[0])
-        let y = Number(cell.split('-')[1])
-        y = y+1
-        const newPos = x + '-' + y
-        return newPos
-      })
-      result = [newOccupiedCells,newOccupiedColors]
-    }
-    return result
-  }
+
   //downward moevent only
-  computerMove = () =>{
-      if (this.state.paused) return
-      this.clearCanvas()
-      let copyOfActiveShape = Object.assign({},this.state.activeShape)
-      if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
-        this.runCollision(3,0)
-      }
-      else{
-        copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
-        this.setState({
-          activeShape: copyOfActiveShape
-        },()=>this.drawShape())
-      }
+  screenBottom = () =>{
+    const collisionResult = occupiedSpace(null,this.state.canvasHeight/this.state.activeShape.unitBlockSize,this.state)
+    let copyOfPoints = Object.assign({},this.state.points)
+    const incrementLines = collisionResult[1] ? collisionResult[1] : 0
+    copyOfPoints.linesCleared = this.state.points.linesCleared + incrementLines
+    copyOfPoints.totalLinesCleared = incrementLines!==0 ? this.state.points.totalLinesCleared + incrementLines : this.state.points.totalLinesCleared
+    this.setState({
+      occupiedCells:collisionResult[0],
+      points: copyOfPoints,
+    },()=>this.resetBoard())
   }
+  yMove = () =>{
+    this.clearCanvas()
+    let copyOfActiveShape = Object.assign({},this.state.activeShape)
+    if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){//bottom of screen
+      this.screenBottom()
+    }
+    else{
+      copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
+      this.setState({
+        activeShape: copyOfActiveShape
+      },()=>this.drawShape())
+    }
+  }
+
   
   rotation = (direction) =>{
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
@@ -347,6 +247,7 @@ class App extends Component{
   }
   //left right movement only
   playerMove = (e)=>{
+    //if(this.state.paused)return
     const left = e.keyCode===37
     const right = e.keyCode===39
     const up = e.keyCode===38
@@ -378,15 +279,7 @@ class App extends Component{
       },()=>this.drawShape())
     }
     else if(down){
-      if(this.state.activeShape.boundingBox[3] >= this.state.canvasHeight){
-        this.runCollision()
-        return
-      }
-      copyOfActiveShape.yPosition = copyOfActiveShape.yPosition + this.state.activeShape.unitBlockSize
-      this.clearCanvas()
-      this.setState({
-        activeShape: copyOfActiveShape
-      },()=>this.drawShape())
+      this.yMove()
     }
     else{
       this.rotation()
@@ -397,6 +290,7 @@ class App extends Component{
     this.canvasContext.clearRect(0, 0, this.state.canvasWidth, this.state.canvasHeight);
   }
   handlePause = () =>{
+    this.refs.canvas.focus()
     this.setState({
       paused: this.state.paused ? false :true
     })
@@ -415,6 +309,7 @@ class App extends Component{
         <button className="reset" onClick={()=>this.resetBoard(true)}>
           Reset
         </button>
+        <label htmlFor="test">Lines Cleared = {this.state.points.totalLinesCleared}</label>
         <label>
           Pause:
           <input
@@ -435,9 +330,12 @@ const initialState={ //determine what needs to go into state, a very small porti
   canvasWidth:640,
   canvasHeight:640,
   timerInterval:700,
-  activeCells:[],
   occupiedCells:[],
   paused:false,
+  points:{
+    linesCleared:0,
+    totalLinesCleared:0
+  },
   activeShape:{
     name:'shapeZ',
     unitBlockSize:40,
@@ -447,5 +345,6 @@ const initialState={ //determine what needs to go into state, a very small porti
     absoluteVertices:[],
     boundingBox:[],
     rotationStage:0,
+    cells:[],
   }
 }

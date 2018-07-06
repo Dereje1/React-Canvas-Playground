@@ -10,15 +10,16 @@ body{
 .controls{
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  justify-content: space-around;
   align-items: center;
+  width:100%;
 }
 .reset {
   margin-top:10px;
   margin-right: 20px;
   height:50px;
   font-size:25px;
-  width:640px;
+  width:20%;
   cursor:pointer;
   }
   

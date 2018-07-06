@@ -1,15 +1,8 @@
 export const tetrisShapes = {
-    onDraw: (canvasContext,activeShape)=>{
+    getDims: (activeShape)=>{
         const blockSize = activeShape.unitBlockSize
         const absoluteVertices = tetrisShapes.getAbsoluteVertices(blockSize,activeShape.xPosition,activeShape.yPosition,activeShape.unitVertices)
-        canvasContext.beginPath()
-        canvasContext.fillStyle = tetrisShapes[activeShape.name].color;
-        canvasContext.moveTo(activeShape.xPosition,activeShape.yPosition)
-        absoluteVertices.forEach((v)=>{
-            canvasContext.lineTo(v[0],v[1])
-        })
-        canvasContext.lineTo(activeShape.xPosition,activeShape.yPosition)
-        canvasContext.fill();
+
         return [tetrisShapes.onBoundingBox(absoluteVertices),absoluteVertices]
     },
     onRotate: (oldVertices)=>{
