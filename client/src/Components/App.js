@@ -57,6 +57,9 @@ newShape = ()=>{
     this.abortCounter++
     console.log(`Called by ${c} , attempts = ${this.abortCounter}`)
     clearInterval(this.downInterval)
+    this.setState({
+      paused:true
+    })
   }
   tick = () =>{
     //console.log(this.downInterval)
@@ -80,6 +83,7 @@ updateScreen = (updatedShape) =>{
   this.setState({
     activeShape: drawReturn,
     rubble:copyOfRubble,
+    paused:false
   },()=>this.screenMatrix())
 }
 
@@ -158,7 +162,7 @@ updateScreen = (updatedShape) =>{
         return 'done'
       }
       const rowsCleared = collisionResult[1] ? collisionResult[1].length : 0
-      const reduceTimeinterval = ((this.state.points.linesCleared + rowsCleared) > 4 && this.state.timerInterval > 250) ? true : false
+      const reduceTimeinterval = ((this.state.points.linesCleared + rowsCleared) > this.state.points.levelUp && this.state.timerInterval > 250) ? true : false
 
       copyOfPoints.linesCleared = reduceTimeinterval ? 0 : this.state.points.linesCleared + rowsCleared
       copyOfPoints.totalLinesCleared = rowsCleared ? this.state.points.totalLinesCleared  + rowsCleared: this.state.points.totalLinesCleared
@@ -167,6 +171,7 @@ updateScreen = (updatedShape) =>{
       copyOfRubble.winRows = collisionResult[1]
       if(rowsCleared){
         this.endTick('collision check - winning row')
+        console.log('reduce Interval, ', reduceTimeinterval )
         clearCanvas(this.canvasContext,this.state) //clear canvas
         winRubble(this.canvasContext,this.state.activeShape,this.state,collisionResult[1])
         const inter = setTimeout(() => {
@@ -227,6 +232,11 @@ rotation = () =>{
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
     copyOfActiveShape.unitVertices = tetrisShapes.onRotate(copyOfActiveShape.unitVertices)
     copyOfActiveShape.rotationStage = copyOfActiveShape.rotationStage > 2 ? 0 : copyOfActiveShape.rotationStage + 1
+    const boundingBox = tetrisShapes.onBoundingBox(tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,this.state.activeShape.xPosition,this.state.activeShape.yPosition,copyOfActiveShape.unitVertices))
+
+    if(boundingBox[0]<0 || boundingBox[1]>this.state.canvasWidth){
+      return
+    }
     this.updateScreen(copyOfActiveShape)
   }
 getSideBlock = (direction)=>{
@@ -261,12 +271,12 @@ getSideBlock = (direction)=>{
           Reset
         </button>
         <label htmlFor="test">Lines Cleared = {this.state.points.totalLinesCleared}</label>
+        <label htmlFor="test">Level = {Math.floor(this.state.points.totalLinesCleared/(this.state.points.levelUp+1))}</label>
         <label>
           Pause:
           <input
             name="Pausing"
             type="checkbox"
-            checked={this.state.paused}
             onChange={this.handlePause} />
         </label>
        </div>
@@ -282,7 +292,8 @@ const initialState={ //determine what needs to go into state, a very small porti
   paused:false,
   points:{
     linesCleared:0,
-    totalLinesCleared:0
+    totalLinesCleared:0,
+    levelUp:4
   },
   rubble:{
     occupiedCells:[],

@@ -5,8 +5,7 @@ const occupiedSpace = (i,j,state) =>{
     //checks if at bottom of screen
     const columnElementSize = state.canvasHeight/state.activeShape.unitBlockSize
     if(occupiedCellLocations.includes(stringCell) || (columnElementSize===j)) {
-      //console.log("collision Found @",stringCell)\
-      return j===0 ? 'done' : runCollision(state)
+      return (j===0 || state.activeShape.boundingBox[2]===0) ? 'done' : runCollision(state)
     }
     else{
         return false
