@@ -1,36 +1,34 @@
 import { tetrisShapes } from './shapes'
-const occupiedSpace = (i,j,state) =>{
-    const stringCell = (i+'-'+j)
-    const occupiedCellLocations = state.rubble.occupiedCells.map((c)=> c[0])
-    //checks if at bottom of screen
-    const columnElementSize = state.canvasHeight/state.activeShape.unitBlockSize
-    if(occupiedCellLocations.includes(stringCell) || (columnElementSize===j)) {
-      return (j===0 || state.activeShape.boundingBox[2]===0) ? 'done' : runCollision(state)
-    }
-    else{
-        return false
-    }
-  }
 
-const runCollision = (state) =>{
-    let stringActive = state.activeShape.cells.map(c=> c.join('-'))
- 
+const runCollision = (state,shapeTested) =>{
     const occupiedCellLocations = state.rubble.occupiedCells.map(c=> c[0])
+    //shape to test for collison
+    const testedShape = shapeTested.cells.map(c=> c.join('-'))
+    //currently active shape
+    let preCollisionShape = state.activeShape.cells.map(c=> c.join('-'))
+    //game play area occupied cells
+    const isOccupied = testedShape.filter(c=> (occupiedCellLocations.includes(c)))
+    //bottom boundary occupied cells
+    const isLowerBoundary = testedShape.filter(c=> (state.rubble.boundaryCells.includes(c)))
+    //upperBoundary ocupied cells
+    const isUpperBoundary = shapeTested.cells.filter(c => c[1] === 0 )
+    if(isOccupied.length || isLowerBoundary.length){//collision detected
+        if(isUpperBoundary.length) return 'done'
+        //add color info to active shape
+        preCollisionShape = preCollisionShape.map(c=> [c,tetrisShapes[state.activeShape.name].color])
+        //add active shaped to occupied cells
+        const newOccupied = [...state.rubble.occupiedCells,...preCollisionShape]
+        //test for winner
+        const winners = winCheck(newOccupied,state)
+        if(winners.length){
+            return [clearRows(newOccupied,winners,state.canvasHeight/state.activeShape.unitBlockSize),winners]
+        }
+        else{
+            return [newOccupied,null]
+        }
+    }
+    else return false //no collision detected
 
-    //find element coordinates of active shape that are not already in the occupied cells
-    stringActive = stringActive.filter(c=> (!occupiedCellLocations.includes(c)))
-    
-    //get the colors of active shape and store with the coordinates
-    stringActive = stringActive.map(c=> [c,tetrisShapes[state.activeShape.name].color])
-    //add the new cells to the occupied ones
-    const newOccupied = [...state.rubble.occupiedCells,...stringActive]
-    const winners = winCheck(newOccupied,state)
-    if(winners.length){
-        return [clearRows(newOccupied,winners,state.canvasHeight/state.activeShape.unitBlockSize),winners]
-    }
-    else{
-        return [newOccupied,null]
-    }
   }
 
  const winCheck = (newOccupied,state) =>{
@@ -38,9 +36,10 @@ const runCollision = (state) =>{
     const yCoord = newOccupied.map((c)=> Number(c[0].split('-')[1]))
     //find unique y coordinates
     const yUnique = Array.from(new Set(yCoord))
-
+    //find how amny elements per row
     const rowSize = state.canvasWidth/state.activeShape.unitBlockSize
     const winners =[]
+    //test if new state would have a winnable row by comparing occupation with row size
     yUnique.forEach((u)=>{
         let counter=0
         yCoord.forEach((c)=>{
@@ -50,9 +49,10 @@ const runCollision = (state) =>{
     })
     return winners
   }
+
 const clearRows = (occupied,winners,columnLength) =>{
     const newOccupied= []
-    const w= Math.max(...winners)
+    const w= Math.max(...winners) //gets maximum (bottom most) winning row
     occupied.forEach((c)=>{
         const occupiedY = Number(c[0].split('-')[1])
         if(!winners.includes(occupiedY)){
@@ -71,4 +71,4 @@ const clearRows = (occupied,winners,columnLength) =>{
     return newOccupied
 }
 
-export default occupiedSpace
+export default runCollision

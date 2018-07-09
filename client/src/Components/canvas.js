@@ -1,4 +1,5 @@
 import { tetrisShapes } from './shapes'
+import shapeLocator from './locateShape';
 export const drawGrid = (x,y,occupied,b,canvasContext) =>{
     let col = occupied ? 'grey' : 'white'
     canvasContext.beginPath();
@@ -19,12 +20,28 @@ export const drawShape = (canvasContext,updatedShape,state) =>{
     })
     canvasContext.lineTo(updatedShape.xPosition,updatedShape.yPosition)
     canvasContext.fill();
+    if(!state)return
     drawRuble(canvasContext,updatedShape,state)
     return updatedShape
   }
 
 
-
+export const drawNextShape = (canvasContext,initShape,state) =>{
+    clearCanvas(canvasContext,state)
+    const canvasWidth = state.canvasWidth/2
+    const canvasHeight = state.canvasHeight/4
+    const initiailizedShape ={}
+    initiailizedShape.name = initShape[0]
+    initiailizedShape.unitVertices = tetrisShapes[initShape[0]].vertices
+    initiailizedShape.unitBlockSize = state.activeShape.unitBlockSize
+ 
+    initiailizedShape.xPosition = canvasWidth/2 
+    initiailizedShape.yPosition = canvasHeight/2
+    
+    drawShape(canvasContext,initiailizedShape)
+    const locatedShape = shapeLocator(canvasContext,canvasWidth,canvasHeight,initiailizedShape,true)
+    console.log(initiailizedShape,locatedShape)
+}
 //clear canvas
 export const clearCanvas = (canvasContext,state)=>{
     canvasContext.clearRect(0, 0, state.canvasWidth, state.canvasHeight);
