@@ -115,7 +115,7 @@ class App extends Component{
   getRandShapeName = () =>{
     const shapeList = ['shapeL','shapeZ','shapeT','shapeI','shapeJ','shapeO','shapeS']
     const randNum = Math.floor(Math.random() * (shapeList.length));
-    return shapeList[randNum]
+    return shapeList[3]
   }
   initializeShape = (shapeName) =>{
     
@@ -209,17 +209,25 @@ class App extends Component{
         this.updateScreen(copyOfActiveShape)
       }
       else if(down) this.tick()
-      else this.rotation()
+      else this.rotation(this.state.activeShape)
     }
 
-  rotation = () =>{
-      let copyOfActiveShape = Object.assign({},this.state.activeShape)
-      copyOfActiveShape.unitVertices = tetrisShapes.onRotate(copyOfActiveShape.unitVertices)
-      copyOfActiveShape.rotationStage = copyOfActiveShape.rotationStage > 2 ? 0 : copyOfActiveShape.rotationStage + 1
-      const boundingBox = tetrisShapes.onBoundingBox(tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,this.state.activeShape.xPosition,this.state.activeShape.yPosition,copyOfActiveShape.unitVertices))
+  rotation = (active) =>{
+      const unitVerticesAfterRotation = tetrisShapes.onRotate(active.unitVertices)
+      const boundingBox = tetrisShapes.onBoundingBox(tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,this.state.activeShape.xPosition,this.state.activeShape.yPosition,unitVerticesAfterRotation))
 
-      if(boundingBox[0]<0 || boundingBox[1]>this.state.canvasWidth){
-        return
+      let copyOfActiveShape = Object.assign({},this.state.activeShape)
+      copyOfActiveShape.unitVertices = unitVerticesAfterRotation
+      copyOfActiveShape.rotationStage = copyOfActiveShape.rotationStage > 2 ? 0 : copyOfActiveShape.rotationStage + 1
+
+      if(boundingBox[0]<0 || boundingBox[1]>this.state.canvasWidth){ //side wall kicks
+        const translateUnits = this.state.activeShape.name === 'shapeI' ? 2 : 1
+        if(boundingBox[0]<0){//translate to the left 
+          copyOfActiveShape.xPosition = copyOfActiveShape.xPosition + (translateUnits*this.state.activeShape.unitBlockSize)
+        }
+        else{//translate to the right
+          copyOfActiveShape.xPosition = copyOfActiveShape.xPosition - (translateUnits*this.state.activeShape.unitBlockSize)
+        }
       }
       this.updateScreen(copyOfActiveShape)
     }

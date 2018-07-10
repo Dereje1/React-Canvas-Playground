@@ -40,7 +40,7 @@ export const drawNextShape = (canvasContext,initShape,state) =>{
     
     drawShape(canvasContext,initiailizedShape)
     const locatedShape = shapeLocator(canvasContext,canvasWidth,canvasHeight,initiailizedShape,true)
-    console.log(initiailizedShape,locatedShape)
+    //console.log(initiailizedShape,locatedShape)
 }
 //clear canvas
 export const clearCanvas = (canvasContext,state)=>{
