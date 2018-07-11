@@ -18,7 +18,14 @@ class App extends Component{
   componentWillUnmount() {
     this.endTick('componentWillUnmount')
   }
-
+  componentDidUpdate(prevProps,prevState){
+   if((this.state.points.level !== prevState.points.level) && (this.state.timerInterval > 250)) {
+     this.endTick('Level Change')
+     this.setState({
+        timerInterval: this.state.timerInterval -150
+     },()=>this.startTick())
+   }
+  }
   resetBoard =() =>{ //clear and restart
     const canvasMajor = this.refs.canvasMajor
     const canvasMinor = this.refs.canvasMinor
@@ -142,23 +149,21 @@ class App extends Component{
       }
       //retreive total rows cleared (if any) and test for time interval reduction
       const rowsCleared = collisionResult[1] ? collisionResult[1].length : 0
-      const reduceTimeinterval = (((this.state.points.totalLinesCleared  + rowsCleared)% this.state.points.levelUp) ===0  && this.state.timerInterval > 250) ? true : false
       //assign points if winner found
       copyOfPoints.totalLinesCleared = this.state.points.totalLinesCleared  + rowsCleared
+      copyOfPoints.level = Math.floor(copyOfPoints.totalLinesCleared/(this.state.points.levelUp))
       //assign new rubble coordinates
       copyOfRubble.occupiedCells = collisionResult[0]
       copyOfRubble.winRows = collisionResult[1]
       if(rowsCleared){//winner found
         //end tick to play animation and start tick back after animation is over
         this.endTick('collision check - winning row')
-        console.log('reduce Interval, ', reduceTimeinterval )
         clearCanvas(this.canvasContextMajor,this.state) //clear canvasMajor
         winRubble(this.canvasContextMajor,this.state.activeShape,this.state,collisionResult[1])
         const inter = setTimeout(() => {
           this.setState({
             rubble:copyOfRubble,
             points: copyOfPoints,
-            timerInterval: reduceTimeinterval ? this.state.timerInterval - 150 : this.state.timerInterval
             },()=>this.startTick())
             clearInterval(inter)
         }, 250);
@@ -261,7 +266,7 @@ class App extends Component{
             Reset
           </button>
           <label htmlFor="test">Lines Cleared = {this.state.points.totalLinesCleared}</label>
-          <label htmlFor="test">Level = {Math.floor(this.state.points.totalLinesCleared/(this.state.points.levelUp))}</label>
+          <label htmlFor="test">Level = {this.state.points.level}</label>
           <label>
             Pause:
             <input
@@ -291,6 +296,7 @@ const initialState={ //determine what needs to go into state, a very small porti
   nextShape:'',
   points:{
     totalLinesCleared:0,
+    level:0,
     levelUp:5
   },
   rubble:{// all screen info of rubble
