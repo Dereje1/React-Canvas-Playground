@@ -37,7 +37,7 @@ const runCollision = (state,shapeTested) =>{
     //find unique y coordinates
     const yUnique = Array.from(new Set(yCoord))
     //find how amny elements per row
-    const rowSize = state.canvasWidth/state.activeShape.unitBlockSize
+    const rowSize = state.canvas.canvasMajor.width/state.activeShape.unitBlockSize
     const winners =[]
     //test if new state would have a winnable row by comparing occupation with row size
     yUnique.forEach((u)=>{
@@ -77,8 +77,8 @@ const fillBlankRows = (occupied,state)=>{
     const yCoord = xyCoord.map((y)=> Number(y.split('-')[1]))
     //find max height of all the occupied cells (since canvas positive y is down use min)
     const heightOccupied = Math.min(...yCoord)
-    const screenHeight = (state.canvasHeight/state.activeShape.unitBlockSize)-1
-    const screenWidth = (state.canvasWidth/state.activeShape.unitBlockSize)-1
+    const screenHeight = (state.canvas.canvasMajor.height/state.activeShape.unitBlockSize)-1
+    const screenWidth = (state.canvas.canvasMajor.width/state.activeShape.unitBlockSize)-1
     let blankFound
     //scan thru all the potential cells within occupied
     for(let y=heightOccupied; y<=screenHeight; y++){

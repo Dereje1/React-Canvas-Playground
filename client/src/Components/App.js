@@ -39,8 +39,8 @@ class App extends Component{
     //set bottom boundary by occupying cells
     if(!initialState.rubble.boundaryCells.length){
       const b = this.state.activeShape.unitBlockSize
-      const blocksPerRow = this.state.canvasWidth / b
-      const blocksPerColumn = this.state.canvasHeight / b
+      const blocksPerRow = this.state.canvas.canvasMajor.width / b
+      const blocksPerColumn = this.state.canvas.canvasMajor.height / b
       for(let i=0; i< blocksPerRow;i++){
         initialState.rubble.boundaryCells.push(i+'-'+blocksPerColumn)
       }
@@ -51,7 +51,7 @@ class App extends Component{
     const randomShape = this.state.nextShape ? this.initializeShape(this.state.nextShape) : this.initializeShape(this.getRandShapeName())
     const nextShape = this.getRandShapeName()
     const nextShapeInfo = this.initializeShape(nextShape)
-    
+    //nextShapeInfo.yPosition = -1*nextShapeInfo.boundingBox[2]
     this.setState({
       nextShape: nextShape
     },()=>drawNextShape(this.canvasContextMinor,nextShapeInfo,this.state))
@@ -59,15 +59,13 @@ class App extends Component{
     let copyOfActiveShape = Object.assign({},this.state.activeShape)
     //I and O shapes need right offset
     if(randomShape[0] !== 'shapeI' && randomShape[0] !== 'shapeO'){
-      copyOfActiveShape.xPosition = (this.state.canvasWidth/2) + this.state.activeShape.unitBlockSize/2
+      copyOfActiveShape.xPosition = (this.state.canvas.canvasMajor.width/2) + this.state.activeShape.unitBlockSize/2
     }
     else{
-      copyOfActiveShape.xPosition = (this.state.canvasWidth/2)
+      copyOfActiveShape.xPosition = (this.state.canvas.canvasMajor.width/2)
     }
-    copyOfActiveShape.name = randomShape[0]
-    copyOfActiveShape.yPosition = -1*randomShape[1]
-    copyOfActiveShape.rotationStage = 0
-    copyOfActiveShape.unitVertices = tetrisShapes[copyOfActiveShape.name].vertices
+    copyOfActiveShape = randomShape
+    copyOfActiveShape.yPosition = -1*randomShape.boundingBox[2]
 
     this.updateScreen(copyOfActiveShape)
   }
@@ -109,7 +107,7 @@ class App extends Component{
   }
 
   screenMatrix = () => {//sweep playable area
-    const locatedShape = shapeLocator(this.canvasContextMajor,this.state.canvasWidth,this.state.canvasHeight,this.state.activeShape)
+    const locatedShape = shapeLocator(this.canvasContextMajor,this.state.canvas.canvasMajor.width,this.state.canvas.canvasMajor.height,this.state.activeShape,false)
     const testCollision = this.collisionCheck(locatedShape)
     //if no collison store cell coordinates in state for future comparison
     if(!testCollision){
@@ -125,15 +123,37 @@ class App extends Component{
     return shapeList[randNum]
   }
   initializeShape = (shapeName) =>{
-    
     //finding intital y bound so it does not get cutoff 
-    const pickedShape = shapeName
-    const x = (pickedShape !== 'shapeI' && pickedShape !== 'shapeO') ? this.state.canvasWidth/2 + this.state.activeShape.unitBlockSize/2 : this.state.canvasWidth/2
-    const initialScaledVertices = tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,x,0,tetrisShapes[pickedShape].vertices)
+    let x
+    let copyCanvas = Object.assign({},this.state.canvas)
+    if (shapeName !== 'shapeI' && shapeName !== 'shapeO'){
+      copyCanvas.canvasMinor.width = 210
+      this.setState({
+        canvas:copyCanvas
+      })
+      x= this.state.canvas.canvasMajor.width/2 + this.state.activeShape.unitBlockSize/2
+    }else{
+      copyCanvas.canvasMinor.width = 150
+      x=this.state.canvas.canvasMajor.width/2
+      this.setState({
+        canvas:copyCanvas
+      })
+    }
+    const initialAbsoluteVertices = tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,x,0,tetrisShapes[shapeName].vertices)
     
-    const initialBoundingBox = tetrisShapes.onBoundingBox(initialScaledVertices)
-    
-    return [pickedShape,initialBoundingBox[2]]
+    const initialBoundingBox = tetrisShapes.onBoundingBox(initialAbsoluteVertices)
+    const activeShape ={
+      name:shapeName,
+      unitBlockSize:30,
+      xPosition:x,
+      yPosition:0,
+      unitVertices:tetrisShapes[shapeName].vertices,
+      absoluteVertices:initialAbsoluteVertices,
+      boundingBox:initialBoundingBox,
+      rotationStage:0,
+      cells:[],
+    }
+    return activeShape
   }
 
   collisionCheck = (testShape) =>{
@@ -198,7 +218,7 @@ class App extends Component{
     
       //check X boundaries 
       const leftOutOfBound = left && (this.state.activeShape.boundingBox[0] - this.state.activeShape.unitBlockSize) < 0
-      const rightOutOfBound = right && (this.state.activeShape.boundingBox[1] + this.state.activeShape.unitBlockSize) > this.state.canvasWidth
+      const rightOutOfBound = right && (this.state.activeShape.boundingBox[1] + this.state.activeShape.unitBlockSize) > this.state.canvas.canvasMajor.width
       if(leftOutOfBound || rightOutOfBound) return
 
       let copyOfActiveShape = Object.assign({},this.state.activeShape)
@@ -225,7 +245,7 @@ class App extends Component{
       copyOfActiveShape.rotationStage = copyOfActiveShape.rotationStage > 2 ? 0 : copyOfActiveShape.rotationStage + 1
 
       //crude wall kicks, ideally should translate with a recursive function
-      if(boundingBox[0]<0 || boundingBox[1]>this.state.canvasWidth){ //side wall kicks
+      if(boundingBox[0]<0 || boundingBox[1]>this.state.canvas.canvasMajor.width){ //side wall kicks
         const translateUnits = this.state.activeShape.name === 'shapeI' ? 2 : 1
         if(boundingBox[0]<0){//translate to the left 
           copyOfActiveShape.xPosition = copyOfActiveShape.xPosition + (translateUnits*this.state.activeShape.unitBlockSize)
@@ -258,8 +278,8 @@ class App extends Component{
         <div className ='controls'>
         <canvas
         ref="canvasMinor" 
-        width={this.state.canvasWidth/2} 
-        height={this.state.canvasHeight/4} 
+        width={this.state.canvas.canvasMinor.width} 
+        height={this.state.canvas.canvasMinor.height} 
         tabIndex="0"
         />
           <button className="reset" onClick={()=>this.resetBoard()}>
@@ -278,8 +298,8 @@ class App extends Component{
         </div>
         <canvas 
         ref="canvasMajor" 
-        width={this.state.canvasWidth} 
-        height={this.state.canvasHeight} 
+        width={this.state.canvas.canvasMajor.width} 
+        height={this.state.canvas.canvasMajor.height} 
         tabIndex="0"
         onKeyDown={(e)=>this.playerMoves(e)}
         />
@@ -289,11 +309,19 @@ class App extends Component{
 }
 
 const initialState={ //determine what needs to go into state, a very small portion here
-  canvasWidth:300,
-  canvasHeight:600,
   timerInterval:700,
   paused:false,
   nextShape:'',
+  canvas:{
+    canvasMajor:{
+      width:300,
+      height:600,
+    },
+    canvasMinor:{
+      width:210,
+      height:150,
+    }
+  },
   points:{
     totalLinesCleared:0,
     level:0,

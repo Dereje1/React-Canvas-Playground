@@ -1,5 +1,5 @@
 import {drawGrid} from './canvas'
-const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,tester) =>{
+const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,grid=false) =>{
     const b = shapeInfo.unitBlockSize
     const blocksPerRow = canvasWidth / b
     const blocksPerColumn = canvasHeight / b
@@ -14,9 +14,9 @@ const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,tester) 
       return v.join('-')
     })
     for(let i=0;i < blocksPerRow ; i++){
-      if(!doloop)break
+      if(!doloop & !grid)break
       for(let j=0; j<= blocksPerColumn ; j++){
-        if(!doloop)break
+        if(!doloop & !grid)break
         //check if current unit screen element is within bounding box of active shape
         const x = [i*b,(i*b)+b]
         const y = [j*b,(j*b)+b]
@@ -44,7 +44,9 @@ const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,tester) 
             copyOfActiveShape.cells.push([i,j])
           }
           if(copyOfActiveShape.cells.length === 4)  doloop =false   
+          
         }
+        if(grid)drawGrid(x[0],y[0],match,b,canvasContext)
       }
     }
     return copyOfActiveShape
