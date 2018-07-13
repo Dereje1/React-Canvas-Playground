@@ -8,6 +8,19 @@ export const drawGrid = (x,y,occupied,b,canvasContext) =>{
     canvasContext.rect(x,y,b,b); 
     canvasContext.stroke();
   }
+export const drawGridSpecial = (x,y,occupied,b,canvasContext)=>{
+    if(x===0){
+        let col = occupied ? 'grey' : 'white'
+        canvasContext.beginPath();
+        canvasContext.lineWidth="3";
+        canvasContext.strokeStyle=col;
+        canvasContext.rect(x,y,b,b); 
+        canvasContext.stroke();
+        canvasContext.fillStyle = 'white';
+        canvasContext.rect(x,y,b,b);
+        canvasContext.fill();
+    }
+}
 export const drawShape = (canvasContext,updatedShape,state) =>{
     const drawResults = tetrisShapes.getDims(updatedShape)
     updatedShape.boundingBox = drawResults[0]
@@ -30,19 +43,20 @@ export const drawNextShape = (canvasContext,initiailizedShape,state) =>{
     clearCanvas(canvasContext,state)
     const canvasWidth = state.canvas.canvasMinor.width
     const canvasHeight = state.canvas.canvasMinor.height
-
+    let specialshapes=false
     if(initiailizedShape.name !== 'shapeI' && initiailizedShape.name !== 'shapeO'){
         initiailizedShape.xPosition = canvasWidth/2 
         initiailizedShape.yPosition = canvasHeight/2
     }
     else{
+        specialshapes=true
         initiailizedShape.xPosition = canvasWidth/2 + initiailizedShape.unitBlockSize/2
-        initiailizedShape.yPosition = initiailizedShape.yPosition + canvasHeight/2 + initiailizedShape.unitBlockSize/2
+        initiailizedShape.yPosition = initiailizedShape.yPosition + canvasHeight/2 - initiailizedShape.unitBlockSize/2
     }
     
     
     drawShape(canvasContext,initiailizedShape)
-    shapeLocator(canvasContext,canvasWidth,canvasHeight,initiailizedShape,false)
+    shapeLocator(canvasContext,canvasWidth,canvasHeight,initiailizedShape,false,specialshapes)
 }
 //clear canvas
 export const clearCanvas = (canvasContext,state)=>{

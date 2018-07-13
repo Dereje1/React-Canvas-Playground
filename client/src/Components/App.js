@@ -124,21 +124,8 @@ class App extends Component{
   }
   initializeShape = (shapeName) =>{
     //finding intital y bound so it does not get cutoff 
-    let x
-    let copyCanvas = Object.assign({},this.state.canvas)
-    if (shapeName !== 'shapeI' && shapeName !== 'shapeO'){
-      copyCanvas.canvasMinor.width = 210
-      this.setState({
-        canvas:copyCanvas
-      })
-      x= this.state.canvas.canvasMajor.width/2 + this.state.activeShape.unitBlockSize/2
-    }else{
-      copyCanvas.canvasMinor.width = 150
-      x=this.state.canvas.canvasMajor.width/2
-      this.setState({
-        canvas:copyCanvas
-      })
-    }
+    let x = (shapeName !== 'shapeI' && shapeName !== 'shapeO') ? this.state.canvas.canvasMajor.width/2 + this.state.activeShape.unitBlockSize/2 : this.state.canvas.canvasMajor.width/2
+
     const initialAbsoluteVertices = tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,x,0,tetrisShapes[shapeName].vertices)
     
     const initialBoundingBox = tetrisShapes.onBoundingBox(initialAbsoluteVertices)

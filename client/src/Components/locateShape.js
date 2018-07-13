@@ -1,5 +1,5 @@
-import {drawGrid} from './canvas'
-const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,grid=false) =>{
+import {drawGrid,drawGridSpecial} from './canvas'
+const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,grid=false,specialShapes=false) =>{
     const b = shapeInfo.unitBlockSize
     const blocksPerRow = canvasWidth / b
     const blocksPerColumn = canvasHeight / b
@@ -47,6 +47,9 @@ const shapeLocator = (canvasContext,canvasWidth, canvasHeight,shapeInfo,grid=fal
           
         }
         if(grid)drawGrid(x[0],y[0],match,b,canvasContext)
+        if(specialShapes){
+          drawGridSpecial(x[0],y[0],match,b,canvasContext)
+        }
       }
     }
     return copyOfActiveShape
