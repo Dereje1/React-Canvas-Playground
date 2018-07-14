@@ -147,7 +147,7 @@ class App extends Component{
     let copyOfPoints = Object.assign({},this.state.points)
     let copyOfRubble = Object.assign({},this.state.rubble)
     const collisionResult = runCollision(this.state,testShape)
-
+    //console.log(testShape)
     if(collisionResult){//found collision
       //check if game space is all occupied
       if(collisionResult==='done'){
@@ -226,22 +226,28 @@ class App extends Component{
   rotation = (active) =>{
       const unitVerticesAfterRotation = tetrisShapes.onRotate(active.unitVertices)
       const boundingBox = tetrisShapes.onBoundingBox(tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,this.state.activeShape.xPosition,this.state.activeShape.yPosition,unitVerticesAfterRotation))
+      const absoluteVertices = tetrisShapes.getAbsoluteVertices(this.state.activeShape.unitBlockSize,this.state.activeShape.xPosition,this.state.activeShape.yPosition,unitVerticesAfterRotation)
 
-      let copyOfActiveShape = Object.assign({},this.state.activeShape)
-      copyOfActiveShape.unitVertices = unitVerticesAfterRotation
-      copyOfActiveShape.rotationStage = copyOfActiveShape.rotationStage > 2 ? 0 : copyOfActiveShape.rotationStage + 1
+      let rotatedShape = Object.assign({},this.state.activeShape)
+      rotatedShape.unitVertices = unitVerticesAfterRotation
+      rotatedShape.rotationStage = rotatedShape.rotationStage > 2 ? 0 : rotatedShape.rotationStage + 1
+      rotatedShape.cells=[]
+      rotatedShape.absoluteVertices = absoluteVertices
+      rotatedShape.boundingBox = boundingBox
 
       //crude wall kicks, ideally should translate with a recursive function
       if(boundingBox[0]<0 || boundingBox[1]>this.state.canvas.canvasMajor.width){ //side wall kicks
         const translateUnits = this.state.activeShape.name === 'shapeI' ? 2 : 1
         if(boundingBox[0]<0){//translate to the left 
-          copyOfActiveShape.xPosition = copyOfActiveShape.xPosition + (translateUnits*this.state.activeShape.unitBlockSize)
+          rotatedShape.xPosition = rotatedShape.xPosition + (translateUnits*this.state.activeShape.unitBlockSize)
         }
         else{//translate to the right
-          copyOfActiveShape.xPosition = copyOfActiveShape.xPosition - (translateUnits*this.state.activeShape.unitBlockSize)
+          rotatedShape.xPosition = rotatedShape.xPosition - (translateUnits*this.state.activeShape.unitBlockSize)
         }
       }
-      this.updateScreen(copyOfActiveShape)
+      //locate shape to check collision on rotation, if collision detected do not rotate shape
+      const locatedShape = shapeLocator(this.canvasContextMajor,this.state.canvas.canvasMajor.width,this.state.canvas.canvasMajor.height,rotatedShape,false)
+      if(!runCollision(this.state,locatedShape))this.updateScreen(rotatedShape)
   }
   getSideBlock = (direction)=>{
     const cellCheck = this.state.activeShape.cells.map((c)=>{
