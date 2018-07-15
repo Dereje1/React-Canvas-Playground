@@ -147,7 +147,7 @@ class App extends Component{
     let copyOfPoints = Object.assign({},this.state.points)
     let copyOfRubble = Object.assign({},this.state.rubble)
     const collisionResult = runCollision(this.state,testShape)
-    //console.log(testShape)
+
     if(collisionResult){//found collision
       //check if game space is all occupied
       if(collisionResult==='done'){
